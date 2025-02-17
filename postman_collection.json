@@ -1,0 +1,157 @@
+{
+	"info": {
+		"_postman_id": "9d32b768-f6a5-4d77-a2f8-54f26144e751",
+		"name": "Sumanth TJ",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "22017852"
+	},
+	"item": [
+		{
+			"name": "Market Analysis",
+			"item": [
+				{
+					"name": "Add new Analysis",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"date\" : \"2025/02/10\",\n    \"premarketanalysis\" : \"test\",\n    \"postmarketanalysis\" : \"test\",\n    \"eventday\" : \"0\",\n    \"eventdescription\" : \"test\",\n    \"premarketexpectation\" : \"test\",\n    \"marketmovement\": \"sideways\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:1000/api/marketanalysis",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1000",
+							"path": [
+								"api",
+								"marketanalysis"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Analysis",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"date\" : \"2025/02/10\",\n    \"premarketanalysis\" : \"test\",\n    \"postmarketanalysis\" : \"test\",\n    \"eventday\" : \"0\",\n    \"eventdescription\" : \"test\",\n    \"premarketexpectation\" : \"test\",\n    \"marketmovement\": \"sideways\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:1000/api/marketanalysis/6",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1000",
+							"path": [
+								"api",
+								"marketanalysis",
+								"6"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get complete list",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:1000/api/marketanalysis",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1000",
+							"path": [
+								"api",
+								"marketanalysis"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Analysis by Id",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"date\" : \"2025/02/10\",\n    \"premarketanalysis\" : \"test\",\n    \"postmarketanalysis\" : \"test\",\n    \"eventday\" : \"0\",\n    \"eventdescription\" : \"test\",\n    \"premarketexpectation\" : \"test\",\n    \"marketmovement\": \"sideways\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:1000/api/marketanalysis/6",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1000",
+							"path": [
+								"api",
+								"marketanalysis",
+								"6"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Analysis by Id",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"date\" : \"2025/02/10\",\n    \"premarketanalysis\" : \"test\",\n    \"postmarketanalysis\" : \"test\",\n    \"eventday\" : \"0\",\n    \"eventdescription\" : \"test\",\n    \"premarketexpectation\" : \"test\",\n    \"marketmovement\": \"sideways\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:1000/api/marketanalysis/6",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1000",
+							"path": [
+								"api",
+								"marketanalysis",
+								"6"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

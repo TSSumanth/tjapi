@@ -4,6 +4,7 @@ const {
   getMarketAnalysis,
   createMarketAnalysis,
   updateMarketAnalysis,
+  deleteMarketAnalysis
 } = require("../controllers/marketAnalysisController");
 const router = express.Router();
 
@@ -14,6 +15,6 @@ const router = express.Router();
 
 router.route("/").get(getAllMarketAnalysis).post(createMarketAnalysis);
 
-router.route("/:id").get(getMarketAnalysis).patch(updateMarketAnalysis);
+router.route("/:id").get(getMarketAnalysis).patch(updateMarketAnalysis).delete(deleteMarketAnalysis);
 
 module.exports = router;

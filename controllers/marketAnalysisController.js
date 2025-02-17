@@ -149,3 +149,25 @@ exports.updateMarketAnalysis = (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+exports.deleteMarketAnalysis = (req, res) => {
+  const { id } = req.params;
+
+  try {
+    db.query(
+      "Delete FROM marketanalysis WHERE id = ?",
+      [id],
+      (err, results) => {
+        if (err) return res.status(500).json(err);
+        if (results.affectedRows == 1) return res.status(204).json({});
+        else
+          return res
+            .status(500)
+            .json({ error: `No record available to delete with id:${id}` });
+      }
+    );
+  } catch (error) {
+    console.error("Error deleting Analysis:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
