@@ -136,14 +136,19 @@ exports.updateMarketAnalysis = (req, res) => {
   updateValues.push(id);
   try {
     // Execute the query
-    const result = db.execute(sqlQuery, updateValues);
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Analysis not found" });
-    }
-
-    // Respond with a success message
-    res.status(200).json({ message: "Analysis updated successfully" });
+    const result = db.execute(sqlQuery, updateValues, (err, results) => {
+      if (err) return res.status(500).json(err);
+      console.log(results)
+      if (results.affectedRows == 0) {
+        return res.status(404).json({ message: "Analysis not found" });
+      }
+      if (results.affectedRows == 1){
+        return res
+          .status(200)
+          .json({ message: "Analysis updated successfully" });
+      }
+      res.status(500).json({error: "Unable to update record: "+ id}); 
+    });
   } catch (error) {
     console.error("Error updating analysis:", error);
     res.status(500).json({ message: "Internal server error" });
