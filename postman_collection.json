@@ -136,7 +136,7 @@
 							}
 						},
 						"url": {
-							"raw": "http://localhost:1000/api/marketanalysis/6",
+							"raw": "http://localhost:1000/api/marketanalysis/4",
 							"protocol": "http",
 							"host": [
 								"localhost"
@@ -145,7 +145,166 @@
 							"path": [
 								"api",
 								"marketanalysis",
-								"6"
+								"4"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Tags",
+			"item": [
+				{
+					"name": "Add Tag",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\" : \"Tatasteel_JAN\",\n    \"description\" : \"test\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:1000/api/tags",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1000",
+							"path": [
+								"api",
+								"tags"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Tags",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"date\" : \"2025/02/10\",\n    \"premarketanalysis\" : \"test\",\n    \"postmarketanalysis\" : \"test\",\n    \"eventday\" : \"0\",\n    \"eventdescription\" : \"test\",\n    \"premarketexpectation\" : \"test\",\n    \"marketmovement\": \"sideways\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:1000/api/tags",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1000",
+							"path": [
+								"api",
+								"tags"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Tag",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"date\" : \"2025/02/10\",\n    \"premarketanalysis\" : \"test\",\n    \"postmarketanalysis\" : \"test\",\n    \"eventday\" : \"0\",\n    \"eventdescription\" : \"test\",\n    \"premarketexpectation\" : \"test\",\n    \"marketmovement\": \"sideways\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:1000/api/tags/Tatasteel_FEB",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1000",
+							"path": [
+								"api",
+								"tags",
+								"Tatasteel_FEB"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Tag",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"date\" : \"2025/02/10\",\n    \"premarketanalysis\" : \"test\",\n    \"postmarketanalysis\" : \"test\",\n    \"eventday\" : \"0\",\n    \"eventdescription\" : \"test\",\n    \"premarketexpectation\" : \"test\",\n    \"marketmovement\": \"sideways\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:1000/api/tags/Tatasteel_JAN",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1000",
+							"path": [
+								"api",
+								"tags",
+								"Tatasteel_JAN"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Tag",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Tatasteel_JAN\",\n    \"description\": \"test 123\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:1000/api/tags/Tatasteel_JAN",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1000",
+							"path": [
+								"api",
+								"tags",
+								"Tatasteel_JAN"
 							]
 						}
 					},

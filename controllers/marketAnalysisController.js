@@ -1,22 +1,6 @@
-const mysql = require("mysql2");
+const db = require("./../db");
 const moment = require("moment");
 
-// MySQL Connection
-const db = mysql.createConnection({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-});
-
-db.connect((err) => {
-  if (err) {
-    console.error("❌ MySQL Connection Error:", err);
-    console.error(
-      "If failed due to Error: listen EADDRINUSE: address already in use :::1000, change the port number"
-    );
-  } else console.log("✅ Connected to MySQL Database");
-});
 
 exports.createMarketAnalysis = (req, res) => {
   const {
