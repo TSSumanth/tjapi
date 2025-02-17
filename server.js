@@ -20,7 +20,7 @@ const db = mysql.createConnection({
 db.connect(err => {
     if (err) {
         console.error("❌ MySQL Connection Error:", err);
-        console.error("If failed due to Error: listen EADDRINUSE: address already in use :::5000, change the port number");
+        console.error("If failed due to Error: listen EADDRINUSE: address already in use :::1000, change the port number");
     }
     else console.log("✅ Connected to MySQL Database");
 });
@@ -62,7 +62,7 @@ app.get('/api/marketanalysis/:id', (req, res) => {
                 ...results,
                 date: moment(results.date).format('YYYY-MM-DD') // Format to YYYY-MM-DD
             }));
-            resstatus(200).json(formattedresults);
+            res.status(200).json(formattedresults);
         });
 
     } catch (error) {
