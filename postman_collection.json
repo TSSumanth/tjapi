@@ -53,7 +53,7 @@
 							}
 						},
 						"url": {
-							"raw": "http://localhost:1000/api/marketanalysis/6",
+							"raw": "http://localhost:1000/api/marketanalysis/1",
 							"protocol": "http",
 							"host": [
 								"localhost"
@@ -62,7 +62,7 @@
 							"path": [
 								"api",
 								"marketanalysis",
-								"6"
+								"1"
 							]
 						}
 					},
@@ -235,7 +235,7 @@
 							}
 						},
 						"url": {
-							"raw": "http://localhost:1000/api/tags/Tatasteel_FEB",
+							"raw": "http://localhost:1000/api/tags/TATASTEEL_DEC",
 							"protocol": "http",
 							"host": [
 								"localhost"
@@ -244,7 +244,7 @@
 							"path": [
 								"api",
 								"tags",
-								"Tatasteel_FEB"
+								"TATASTEEL_DEC"
 							]
 						}
 					},
@@ -287,7 +287,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"name\": \"Tatasteel_JAN\",\n    \"description\": \"test 123\"\n}",
+							"raw": "{\n    \"name\": \"Tatasteel_DEC\",\n    \"description\": \"test 123\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -305,6 +305,569 @@
 								"api",
 								"tags",
 								"Tatasteel_JAN"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Profit Loss Entry",
+			"item": [
+				{
+					"name": "Create Entry",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"date\": \"2025-02-11\",\n    \"stocks_realised\": -1002,\n    \"stocks_unrealised\": 12,\n    \"fo_realised\": -102030,\n    \"fo_unrealised\": 12\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:1000/api/plentry",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1000",
+							"path": [
+								"api",
+								"plentry"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Entrys",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"date\": \"2025-02-10\",\n    \"stocks_realised\": 0,\n    \"stocks_unrealised\": 0,\n    \"fo_realised\": 0,\n    \"fo_unrealised\": 0\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:1000/api/plentry",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1000",
+							"path": [
+								"api",
+								"plentry"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Entry",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"date\": \"2025-02-10\",\n    \"stocks_realised\": 0,\n    \"stocks_unrealised\": 0,\n    \"fo_realised\": 0,\n    \"fo_unrealised\": 0\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:1000/api/plentry?date=2025-02-10",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1000",
+							"path": [
+								"api",
+								"plentry"
+							],
+							"query": [
+								{
+									"key": "date",
+									"value": "2025-02-10"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Entry",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"date\": \"2025-02-10\",\n    \"stocks_realised\": 0,\n    \"stocks_unrealised\": 0,\n    \"fo_realised\": 0,\n    \"fo_unrealised\": 0\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:1000/api/plentry?date=2025-02-11",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1000",
+							"path": [
+								"api",
+								"plentry"
+							],
+							"query": [
+								{
+									"key": "date",
+									"value": "2025-02-11"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Entry",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"date\": \"2025-02-01\",\n    \"stocks_realised\": 1000,\n    \"stocks_unrealised\": -5990,\n    \"fo_realised\": 100,\n    \"fo_unrealised\": -98870\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:1000/api/plentry?date=2025-02-21",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1000",
+							"path": [
+								"api",
+								"plentry"
+							],
+							"query": [
+								{
+									"key": "date",
+									"value": "2025-02-21"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Orders",
+			"item": [
+				{
+					"name": "Add Stock Order",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"asset\" : \"TATASTEEL\",\n    \"ordertype\" : \"BUY\",\n    \"quantity\" : \"100\",\n    \"price\": \"132.10\",\n    \"date\" : \"2025-02-10\",\n    \"tradeid\" : \"22\",\n    \"notes\" : \"test notes\",\n    \"tags\" : \"TATASTEEL;MYSTAR1\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:1000/api/orders/stock",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1000",
+							"path": [
+								"api",
+								"orders",
+								"stock"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Add Option Order",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"asset\" : \"TATASTEEL\",\n    \"ordertype\" : \"SELL\",\n    \"quantity\" : \"1\",\n    \"price\": \"6.10\",\n    \"date\" : \"2025-02-10\",\n    \"tradeid\" : \"22\",\n    \"notes\" : \"test notes\",\n    \"tags\" : \"TATASTEEL;MYSTAR1\",\n    \"lotsize\" : \"5500\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:1000/api/orders/option",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1000",
+							"path": [
+								"api",
+								"orders",
+								"option"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Stock Order",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"asset\" : \"TATAMOTORS\",\n    \"ordertype\" : \"BUY\",\n    \"quantity\" : \"100\",\n    \"price\": \"132.10\",\n    \"date\" : \"2025-02-10\",\n    \"tradeid\" : \"22\",\n    \"notes\" : \"test notes\",\n    \"tags\" : \"TATASTEEL;MYSTAR1\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:1000/api/orders/stock?id=1",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1000",
+							"path": [
+								"api",
+								"orders",
+								"stock"
+							],
+							"query": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Option Order",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"asset\" : \"TATAMOTORS\",\n    \"ordertype\" : \"BUY\",\n    \"quantity\" : \"3\",\n    \"price\": \"3.10\",\n    \"date\" : \"2025-02-10\",\n    \"tradeid\" : \"22\",\n    \"notes\" : \"test notes\",\n    \"tags\" : \"TATASTEEL;MYSTAR1\",\n    \"lotsize\" : \"5500\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:1000/api/orders/option?id=1",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1000",
+							"path": [
+								"api",
+								"orders",
+								"option"
+							],
+							"query": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Stock Orders",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:1000/api/orders/stock",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1000",
+							"path": [
+								"api",
+								"orders",
+								"stock"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Option Orders",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:1000/api/orders/option",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1000",
+							"path": [
+								"api",
+								"orders",
+								"option"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Stock Order By id",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:1000/api/orders/stock?id=1",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1000",
+							"path": [
+								"api",
+								"orders",
+								"stock"
+							],
+							"query": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Option Order By id",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:1000/api/orders/option?id=1",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1000",
+							"path": [
+								"api",
+								"orders",
+								"option"
+							],
+							"query": [
+								{
+									"key": "id",
+									"value": "1"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Stock Order",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:1000/api/orders/stock?id=2",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1000",
+							"path": [
+								"api",
+								"orders",
+								"stock"
+							],
+							"query": [
+								{
+									"key": "id",
+									"value": "2"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Option Order",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:1000/api/orders/option?id=2",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1000",
+							"path": [
+								"api",
+								"orders",
+								"option"
+							],
+							"query": [
+								{
+									"key": "id",
+									"value": "2"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Stock Orders Multi Params",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:1000/api/orders/stock?asset=TATASTEEL&asset=TATAMOTORS&tags=TATASTEEL&tags=MYSTAR2&ordertype=buy&startDate=2025-02-10&endDate=2025-02-11",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1000",
+							"path": [
+								"api",
+								"orders",
+								"stock"
+							],
+							"query": [
+								{
+									"key": "asset",
+									"value": "TATASTEEL"
+								},
+								{
+									"key": "asset",
+									"value": "TATAMOTORS"
+								},
+								{
+									"key": "tags",
+									"value": "TATASTEEL"
+								},
+								{
+									"key": "tags",
+									"value": "MYSTAR2"
+								},
+								{
+									"key": "ordertype",
+									"value": "buy"
+								},
+								{
+									"key": "startDate",
+									"value": "2025-02-10"
+								},
+								{
+									"key": "endDate",
+									"value": "2025-02-11"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Option Orders Multi Params",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:1000/api/orders/option?asset=TATASTEEL&asset=TATAMOTORS&tags=TATASTEEL&tags=MYSTAR2&ordertype=buy&startDate=2025-02-10&endDate=2025-02-11",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "1000",
+							"path": [
+								"api",
+								"orders",
+								"option"
+							],
+							"query": [
+								{
+									"key": "asset",
+									"value": "TATASTEEL"
+								},
+								{
+									"key": "asset",
+									"value": "TATAMOTORS"
+								},
+								{
+									"key": "tags",
+									"value": "TATASTEEL"
+								},
+								{
+									"key": "tags",
+									"value": "MYSTAR2"
+								},
+								{
+									"key": "ordertype",
+									"value": "buy"
+								},
+								{
+									"key": "startDate",
+									"value": "2025-02-10"
+								},
+								{
+									"key": "endDate",
+									"value": "2025-02-11"
+								}
 							]
 						}
 					},
