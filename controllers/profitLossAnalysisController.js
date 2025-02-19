@@ -201,7 +201,6 @@ exports.updateEntry = (req, res) => {
   try {
     db.execute(sqlQuery, updateValues, (err, results) => {
       if (err) return res.status(500).json(err);
-      console.log(results);
       if (results.affectedRows == 1) {
         return res.status(200).json({ message: "Entry updated successfully" });
       }

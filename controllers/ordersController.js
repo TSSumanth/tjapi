@@ -86,7 +86,6 @@ exports.getStockOrders = (req, res) => {
     }
   }
   query += " ORDER BY date DESC";
-  console.log(query);
   db.query(query, params, (err, results) => {
     if (err) return res.status(500).json(err);
     const formattedresults = results.map((results) => ({
@@ -183,7 +182,6 @@ exports.updateStockOrder = (req, res) => {
   try {
     db.execute(sqlQuery, updateValues, (err, results) => {
       if (err) return res.status(500).json(err);
-      console.log(results);
       if (results.affectedRows == 1) {
         return res.status(200).json({ message: "Order updated successfully" });
       }
@@ -283,7 +281,6 @@ exports.getOptionOrders = (req, res) => {
     }
   }
   query += " ORDER BY date DESC";
-  console.log(query);
   db.query(query, params, (err, results) => {
     if (err) return res.status(500).json(err);
     const formattedresults = results.map((results) => ({
@@ -386,7 +383,6 @@ exports.updateOptionOrder = (req, res) => {
   try {
     db.execute(sqlQuery, updateValues, (err, results) => {
       if (err) return res.status(500).json(err);
-      console.log(results);
       if (results.affectedRows == 1) {
         return res.status(200).json({ message: "Order updated successfully" });
       }

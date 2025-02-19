@@ -6,7 +6,6 @@ exports.createTag = (req, res) => {
     `Select name from tags where name = ?`,
     [name.toUpperCase()],
     (err, results) => {
-      console.log(results);
       if (results.length > 0) {
         return res.status(500).json({ message: "Duplicate Tag not allowed!" });
       }
@@ -58,7 +57,6 @@ exports.updateTag = (req, res) => {
   let tagname = req.body.name;
   let tagdescription = req.body.description;
   // Build the query string to update the trade
-  console.log(name,tagname,tagdescription )
   let updateFields = ["name", "description"];
   let updateValues = [];
   if (tagname == undefined)
@@ -75,7 +73,6 @@ exports.updateTag = (req, res) => {
     // Execute the query
     const result = db.execute(sqlQuery, updateValues, (err, results) => {
       if (err) return res.status(500).json(err);
-      console.log(results);
       if (results.affectedRows == 0) {
         return res.status(404).json({ message: "Tag not found" });
       }

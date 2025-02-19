@@ -122,7 +122,6 @@ exports.updateMarketAnalysis = (req, res) => {
     // Execute the query
     const result = db.execute(sqlQuery, updateValues, (err, results) => {
       if (err) return res.status(500).json(err);
-      console.log(results)
       if (results.affectedRows == 0) {
         return res.status(404).json({ message: "Analysis not found" });
       }
