@@ -308,3 +308,83 @@ exports.updateStockTrade = (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 }; 
+
+
+exports.createOptionTrade = (req, res) => {
+  const {
+    asset,
+    quantity,
+    lotsize,
+    tradetype,
+    entryprice,
+    entrydate,
+    openquantity,
+    status
+  } = req.body;
+
+  // Validate mandatory fields
+  if (
+    !asset ||
+    !tradetype ||
+    !quantity ||
+    !entryprice ||
+    !entrydate ||
+    !openquantity ||
+    !status
+  ) {
+    return res.status(400).json({
+      error:
+        "Missing required fields: asset, tradetype, quantity, entryprice, entrydate, openquantity, status ",
+    });
+  }
+  if (!(status.toUpperCase() === "OPEN" || status.toUpperCase() === "CLOSED")) {
+    return res.status(400).json({
+      error: `Incorrect value ${status.toUpperCase()} in status: status can only be OPEN or CLOSED`,
+    });
+  }
+  if (!(tradetype.toUpperCase() === "LONG" || tradetype.toUpperCase() === "SHORT")) {
+    return res.status(400).json({
+      error: `Incorrect value ${tradetype.toUpperCase()} in tradetype: tradetype can only be LONG or SHORT`,
+    });
+  }
+
+  let notes,
+    tags = "";
+  let capitalused = req.body.capitalused
+  let closedquantity = req.body.closedquantity
+  let exitaverageprice = req.body.exitaverageprice
+  let finalexitprice = req.body.finalexitprice 
+  let exitdate = req.body.exitdate
+  let lastmodifieddate = req.body.lastmodifieddate
+  let overallreturn = req.body.overallreturn
+
+  if (req.body.notes !== undefined) notes = req.body.notes;
+  if (req.body.tags !== undefined) tags = req.body.tags;
+  if (capitalused === undefined) capitalused = quantity * entryprice;
+  if (closedquantity === undefined) closedquantity = quantity - openquantity;
+  if (exitaverageprice === undefined) exitaverageprice = 0;
+  if (finalexitprice === undefined) finalexitprice = 0;
+  if (exitdate === undefined) exitdate = null;
+  if (lastmodifieddate === undefined) lastmodifieddate = null;
+  if (overallreturn === undefined) overallreturn = 0;
+
+  try {
+    const sql =
+      "INSERT INTO stock_trades (asset, tradetype, quantity, entryprice, entrydate, openquantity, status,capitalused,closedquantity,exitaverageprice,finalexitprice,exitdate,lastmodifieddate,overallreturn,notes,tags) VALUES (?, ?, ?, ?, ?,?,?,?,?, ?, ?, ?, ?,?,?,?)";
+    db.query(
+      sql,
+      [asset, tradetype, quantity, entryprice, entrydate, openquantity, status, capitalused, closedquantity, exitaverageprice, finalexitprice, exitdate, lastmodifieddate, overallreturn, notes, tags],
+      (err, result) => {
+        if (err) return res.status(500).json(err);
+        if (result.affectedRows === 1)
+          return res
+            .status(201)
+            .json({ message: "New trade added successfully!" });
+        res.status(500).json({ message: "Internal server error" });
+      }
+    );
+  } catch (error) {
+    console.error("Error creating order:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
