@@ -1,7 +1,7 @@
 const express = require("express");
 const {
   createEntry,
-  getAllEntries,
+  get,
   getEntry,
   deleteEntry,
   updateEntry
@@ -12,7 +12,7 @@ router
   .route("/")
   .get((req, res) => {
     try {
-      if (req.query.date) {
+      if (req.query.date || req.query.startdate) {
         return getEntry(req, res);
       } else {
         return getAllEntries(req, res);

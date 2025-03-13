@@ -28,13 +28,13 @@ exports.createEntry = (req, res) => {
           sql,
           [
             date,
-            stocks_realised,
-            stocks_unrealised,
-            fo_realised,
-            fo_unrealised,
-            stocks_realised + stocks_unrealised,
-            fo_realised + fo_unrealised,
-            stocks_realised + stocks_unrealised + fo_realised + fo_unrealised,
+            Number(stocks_realised),
+            Number(stocks_unrealised),
+            Number(fo_realised),
+            Number(fo_unrealised),
+            Number(stocks_realised) + Number(stocks_unrealised),
+            Number(fo_realised) + Number(fo_unrealised),
+            Number(stocks_realised) + Number(stocks_unrealised) + Number(fo_realised) + Number(fo_unrealised),
           ],
           (err, result) => {
             if (err) return res.status(500).json(err);
@@ -64,26 +64,50 @@ exports.getAllEntries = (req, res) => {
 };
 
 exports.getEntry = (req, res) => {
-  const { date } = req.query;
+  const { date, startdate, enddate } = req.query;
 
   try {
-    db.query(
-      "SELECT * FROM profit_loss_report WHERE date = ?",
-      [date],
-      (err, results) => {
-        if (err) return res.status(500).json(err);
-        if (results.length === 0) {
-          return res
-            .status(404)
-            .json({ message: "Entry not found for date: " + date });
+    if (date) {
+      db.query(
+        "SELECT * FROM profit_loss_report WHERE date = ?",
+        [date],
+        (err, results) => {
+          if (err) return res.status(500).json(err);
+          if (results.length === 0) {
+            return res
+              .status(404)
+              .json({ message: "Entry not found for date: " + date });
+          }
+          const formattedresults = results.map((results) => ({
+            ...results,
+            date: moment(results.date).format("YYYY-MM-DD"), // Format to YYYY-MM-DD
+          }));
+          res.status(200).json(formattedresults);
         }
-        const formattedresults = results.map((results) => ({
-          ...results,
-          date: moment(results.date).format("YYYY-MM-DD"), // Format to YYYY-MM-DD
-        }));
-        res.status(200).json(formattedresults[0]);
-      }
-    );
+      );
+    }
+    else {
+      console.log("Range date")
+      console.log(startdate, enddate)
+      db.query(
+        "SELECT * FROM profit_loss_report WHERE date >= ? and date <= ?  ORDER BY date DESC",
+        [startdate, enddate],
+        (err, results) => {
+          if (err) return res.status(500).json(err);
+          if (results.length === 0) {
+            return res
+              .status(200)
+              .json({ message: "No Data Found in Date Range: " + startdate + " - "+ enddate});
+          }
+          const formattedresults = results.map((results) => ({
+            ...results,
+            date: moment(results.date).format("YYYY-MM-DD"), // Format to YYYY-MM-DD
+          }));
+          console.log(formattedresults)
+          res.status(200).json(formattedresults);
+        }
+      );
+    }
   } catch (error) {
     console.error("Error fetching Entry:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -114,24 +138,7 @@ exports.deleteEntry = (req, res) => {
 
 exports.updateEntry = (req, res) => {
   const entrydate = req.query.date;
-  if (entrydate == undefined) {
-    return res.status(500).json({
-      status: "fail",
-      error: `date param is required`,
-    });
-  }
-  db.query(
-    "SELECT * FROM profit_loss_report WHERE date = ?",
-    [entrydate],
-    (err, results) => {
-      if (err) return res.status(500).json(err);
-      if (results.length === 0) {
-        return res
-          .status(404)
-          .json({ error: "No existing entry for date: " + entrydate });
-      }
-    }
-  );
+
   const {
     date,
     stocks_realised,
@@ -170,46 +177,75 @@ exports.updateEntry = (req, res) => {
       error: `fo_unrealised : attribute is mandatory`,
     });
   }
-  // Always update asset and trade_type
-  updateFields.push(
-    "date",
-    "stocks_realised",
-    "stocks_unrealised",
-    "fo_realised",
-    "fo_unrealised",
-    "stock_pl",
-    "fo_pl",
-    "total_pl"
-  );
-  updateValues.push(
-    date,
-    stocks_realised,
-    stocks_unrealised,
-    fo_realised,
-    fo_unrealised,
-    stocks_realised + stocks_unrealised,
-    fo_realised + fo_unrealised,
-    stocks_realised + stocks_unrealised + fo_realised + fo_unrealised
-  );
+  let erroroccured = false;
+  if (entrydate == undefined) {
+    return res.status(500).json({
+      status: "fail",
+      error: `date param is required`,
+    });
+  }
 
-  const sqlQuery = `
+  db.query(
+    "SELECT * FROM profit_loss_report WHERE date = ?",
+    [entrydate],
+    (err, results) => {
+      if (err) {
+        erroroccured = true
+        return res.status(500).json(err);
+      }
+      if (results.length === 0) {
+        erroroccured = true
+        return res
+          .status(404)
+          .json({ error: "No existing entry for date: " + entrydate });
+      }
+
+      // Always update asset and trade_type
+      updateFields.push(
+        "date",
+        "stocks_realised",
+        "stocks_unrealised",
+        "fo_realised",
+        "fo_unrealised",
+        "stock_pl",
+        "fo_pl",
+        "total_pl"
+      );
+      updateValues.push(
+        date,
+        Number(stocks_realised),
+        Number(stocks_unrealised),
+        Number(fo_realised),
+        Number(fo_unrealised),
+        Number(stocks_realised) + Number(stocks_unrealised),
+        Number(fo_realised) + Number(fo_unrealised),
+        Number(stocks_realised) + Number(stocks_unrealised) + Number(fo_realised) + Number(fo_unrealised)
+      );
+
+      console.log(updateValues)
+      const sqlQuery = `
             UPDATE profit_loss_report
             SET ${updateFields.map((field) => `${field} = ?`).join(", ")}
             WHERE date = ?
         `;
-  updateValues.push(entrydate);
-  try {
-    db.execute(sqlQuery, updateValues, (err, results) => {
-      if (err) return res.status(500).json(err);
-      if (results.affectedRows == 1) {
-        return res.status(200).json({ message: "Entry updated successfully" });
+      updateValues.push(entrydate);
+      try {
+        db.execute(sqlQuery, updateValues, (err, results) => {
+          if (err) return res.status(500).json(err);
+          if (results.affectedRows == 1) {
+            return res.status(200).json({ message: "Entry updated successfully" });
+          }
+          res
+            .status(500)
+            .json({ error: `Unable to update entry:  + ${entrydate}` });
+        });
+      } catch (error) {
+        console.error("Error updating entry:", error);
+        res.status(500).json({ message: "Internal server error" });
       }
-      res
-        .status(500)
-        .json({ error: `Unable to update entry:  + ${entrydate}` });
-    });
-  } catch (error) {
-    console.error("Error updating entry:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
+    }
+  );
+
+
+
 };

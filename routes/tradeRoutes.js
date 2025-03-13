@@ -3,7 +3,11 @@ const {
   createStockTrade,
   getStockTrades,
   deleteStockTrade,
-  updateStockTrade
+  updateStockTrade,
+  createOptionTrade,
+  deleteOptionTrade,
+  getOptionTrades,
+  updateOptionTrade
 } = require("../controllers/tradeController");
 const router = express.Router();
 
@@ -14,11 +18,12 @@ router
   .delete(deleteStockTrade)
   .patch(updateStockTrade);
 
-// router
-//   .route("/option")
-//   .post(createOptionOrder)
-//   .get(getOptionOrders)
-//   .delete(deleteOptionOrder)
-//   .patch(updateOptionOrder);
+
+  router
+  .route("/option")
+  .post(createOptionTrade)
+  .get(getOptionTrades)
+  .delete(deleteOptionTrade)
+  .patch(updateOptionTrade);
 
 module.exports = router;

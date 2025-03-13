@@ -1,7 +1,7 @@
 const db = require("../db");
 const moment = require("moment");
 
-exports.createStockOrder = (req, res) => {
+exports.createStockOrder = async (req, res) => {
   const { asset, ordertype, quantity, price, date, tradeid } = req.body;
   let notes,
     tags = "";
@@ -12,7 +12,7 @@ exports.createStockOrder = (req, res) => {
         "Missing required fields: asset, ordertype, quantity, price, date, tradeid",
     });
   }
-  if (! (ordertype.toUpperCase() === "BUY" || ordertype.toUpperCase() === "SELL")) {
+  if (!(ordertype.toUpperCase() === "BUY" || ordertype.toUpperCase() === "SELL")) {
     return res.status(400).json({
       error: `Incorrect value ${ordertype.toUpperCase()} in ordertype: OrderType can only be BUY or SELL`,
     });
@@ -26,19 +26,21 @@ exports.createStockOrder = (req, res) => {
     db.query(
       sql,
       [asset, ordertype, quantity, price, date, tradeid, notes, tags],
-      (err, result) => {
+      async (err, result) => {
         if (err) return res.status(500).json(err);
-        if (result.affectedRows === 1)
-          return res
-            .status(201)
-            .json({ message: "New order added successfully!" });
-        res.status(500).json({ message: "Internal server error" });
+        if (result.affectedRows === 1) {
+          const [newRecord] = await db.promise().query("SELECT * FROM stock_orders WHERE id = ?", [result.insertId]);
+          return res.status(201).json(newRecord[0])
+        }
+        else
+          res.status(500).json({ message: "Internal server error" });
       }
     );
   } catch (error) {
     console.error("Error creating order:", error);
     res.status(500).json({ message: "Internal server error" });
   }
+
 };
 
 exports.getStockOrders = (req, res) => {
@@ -194,19 +196,18 @@ exports.updateStockOrder = (req, res) => {
 };
 
 exports.createOptionOrder = (req, res) => {
-  const { asset, ordertype, quantity, price, date, tradeid } = req.body;
+  const { asset, ordertype, quantity, price, date, tradeid, lotsize } = req.body;
   let notes = "",
-    tags = "",
-    lotsize = 0;
+    tags = ""
 
   // Validate mandatory fields
-  if (!asset || !ordertype || !quantity || !price || !date || !tradeid) {
+  if (!asset || !ordertype || !quantity || !price || !date || !tradeid || !lotsize) {
     return res.status(400).json({
       error:
-        "Missing required fields: asset, ordertype, quantity, price, date, tradeid",
+        "Missing required fields: asset, ordertype, quantity, price, date, tradeid, lotsize",
     });
   }
-  if (! (ordertype.toUpperCase() === "BUY" || ordertype.toUpperCase() === "SELL")) {
+  if (!(ordertype.toUpperCase() === "BUY" || ordertype.toUpperCase() === "SELL")) {
     return res.status(400).json({
       error: `Incorrect value ${ordertype.toUpperCase()} in ordertype: OrderType can only be BUY or SELL`,
     });
@@ -214,7 +215,6 @@ exports.createOptionOrder = (req, res) => {
 
   if (req.body.notes !== undefined) notes = req.body.notes;
   if (req.body.tags !== undefined) tags = req.body.tags;
-  if (req.body.lotsize !== undefined) lotsize = req.body.lotsize;
   try {
     const sql =
       "INSERT INTO option_orders (asset, ordertype, quantity, price, date, tradeid, notes, tags, lotsize) VALUES (?, ?, ?, ?, ?,?,?,?,?)";

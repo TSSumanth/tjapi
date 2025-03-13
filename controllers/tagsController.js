@@ -29,10 +29,21 @@ exports.createTag = (req, res) => {
 };
 
 exports.getTags = (req, res) => {
-  db.query("SELECT * FROM tags", (err, results) => {
+  let { name } = req.query;
+  if (name == undefined)
+    name = ""
+  let query = `SELECT * FROM tags  
+                WHERE LOWER(name) LIKE    
+                  CASE  
+                      WHEN ? = '' THEN '%'  
+                      ELSE LOWER(CONCAT('%', ?, '%'))  
+                  END;`
+  db.query(query, [name, name], (err, results) => {
     if (err) return res.status(500).json(err);
-    res.json(results);
+    console.log(results)
+    res.status(200).json(results);
   });
+
 };
 
 exports.getTag = (req, res) => {

@@ -6,6 +6,8 @@ const tagRouter = require("./routes/tagRoutes");
 const profitLossReportRouter = require("./routes/profitLossAnalysisRoutes");
 const ordersRouter = require("./routes/ordersRoutes");
 const tradesRouter = require("./routes/tradeRoutes");
+const actionitemsRouter = require("./routes/actionItemRoutes");
+const strategiesRouter = require("./routes/strategiesRoutes");
 const app = express();
 
 // Middleware declaration
@@ -18,7 +20,8 @@ app.use("/api/tags", tagRouter);
 app.use("/api/plentry", profitLossReportRouter);
 app.use("/api/orders", ordersRouter);
 app.use("/api/trades", tradesRouter);
-
+app.use("/api/actionitems", actionitemsRouter);
+app.use("/api/strategies", strategiesRouter);
 //Use this only at the end, if used at the beginning no matter what route is called by the client the response on the below method is only displayed
 app.all("*", (req, res, next) => {
   res.status(404).json({
