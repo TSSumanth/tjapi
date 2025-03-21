@@ -1,16 +1,14 @@
 const db = require("../db");
-
+const moment = require("moment");
 exports.createStrategy = (req, res) => {
   let { name, description, created_at, stock_trades, option_trades, status } = req.body;
-  if (
-    !name) {
+  if (!name) {
     return res.status(400).json({
       error:
         "Missing required fields: name",
     });
   }
-  if (
-    !status) {
+  if (!status) {
     return res.status(400).json({
       error:
         "Missing required fields: status",
@@ -18,10 +16,10 @@ exports.createStrategy = (req, res) => {
   }
   if (created_at === undefined)
     created_at = new Date();
-  if (stock_trades !== undefined)
-    stock_trades = JSON.stringify(stock_trades)
-  if (option_trades !== undefined)
-    option_trades = JSON.stringify(option_trades)
+  if (stock_trades !== undefined || stock_trades !== null)
+    stock_trades = JSON.stringify([])
+  if (option_trades !== undefined || option_trades !== null)
+    option_trades = JSON.stringify([])
 
   if (!(status.toUpperCase() === "OPEN" || status.toUpperCase() === "CLOSED")) {
     return res.status(400).json({
@@ -35,10 +33,10 @@ exports.createStrategy = (req, res) => {
       if (results.length > 0) {
         return res.status(500).json({ message: "Duplicate strategy name not allowed!" });
       }
-      const sql = "INSERT INTO strategies (name, description, stock_trades, option_trades, created_at) VALUES (?, ?, ?,?,?)";
+      const sql = "INSERT INTO strategies (name, description,status, stock_trades, option_trades, created_at) VALUES (?, ?,?, ?,?,?)";
       db.query(
         sql,
-        [name.toUpperCase(), description, stock_trades, option_trades, created_at],
+        [name.toUpperCase(), description, status.toUpperCase(), stock_trades, option_trades, created_at],
         async (err1, result1) => {
           if (err1) {
             return res.status(500).json(err1);
@@ -56,7 +54,7 @@ exports.createStrategy = (req, res) => {
 };
 
 exports.getStrategies = (req, res) => {
-  let { name, id } = req.query;
+  let { name, id, status, createdafter, createdbefore } = req.query;
   if (id !== undefined) {
     try {
       db.query("SELECT * FROM strategies WHERE id = ?", [id], (err, results) => {
@@ -71,18 +69,33 @@ exports.getStrategies = (req, res) => {
       return res.status(500).json({ message: "Internal server error" });
     }
   } else {
-    if (name == undefined)
-      name = ""
-    let query = `SELECT * FROM strategies  
-                WHERE LOWER(name) LIKE    
-                  CASE  
-                      WHEN ? = '' THEN '%'  
-                      ELSE LOWER(CONCAT('%', ?, '%'))  
-                  END;`
-    db.query(query, [name, name], (err, results) => {
+    let params = [];
+    let query = "SELECT * FROM strategies WHERE 1=1";
+    if (name) {
+      query += ` AND name REGEXP ?`;
+      params.push(name);
+    }
+    if (status) {
+      query += " AND status = ?";
+      params.push(status.toUpperCase());
+    }
+    if (createdafter) {
+      query += " AND created_at >= ?";
+      params.push(createdafter);
+    }
+    if (createdbefore) {
+      query += " AND created_at <= ?";
+      params.push(createdbefore);
+    }
+    query += " ORDER BY created_at DESC";
+    console.log(query)
+    db.query(query, params, (err, results) => {
       if (err) return res.status(500).json(err);
-      console.log(results)
-      res.status(200).json(results);
+      const formattedresults = results.map((results) => ({
+        ...results,
+        created_at: moment(results.created_at).format("YYYY-MM-DD HH:mm"), // Format to YYYY-MM-DD
+      }));
+      res.status(200).json(formattedresults);
     });
   }
 };
@@ -100,7 +113,7 @@ exports.updateStrategy = (req, res) => {
   if (option_trades !== undefined)
     option_trades = JSON.stringify(option_trades)
 
-  if (!(status.toUpperCase() === "OPEN" || status.toUpperCase() === "CLOSED")) {
+  if (!status && !(status.toUpperCase() === "OPEN" || status.toUpperCase() === "CLOSED")) {
     return res.status(400).json({
       error: `Incorrect value ${status.toUpperCase()} in status: Status can only be OPEN or CLOSED`,
     });
@@ -113,6 +126,10 @@ exports.updateStrategy = (req, res) => {
   if (strategyname !== undefined) {
     updateFields.push("name");
     updateValues.push(strategyname.toUpperCase());
+  }
+  if (status !== undefined) {
+    updateFields.push("status");
+    updateValues.push(status.toUpperCase());
   }
   if (description !== undefined) {
     updateFields.push("description");
@@ -137,11 +154,15 @@ exports.updateStrategy = (req, res) => {
   try {
     // Execute the query
     const result = db.execute(sqlQuery, updateValues, (err, results) => {
-      if (err) return res.status(500).json(err);
+      if (err) {
+        console.error("Error updating Strategy:", err);
+        return res.status(500).json(err);
+      }
       if (results.affectedRows == 0) {
         return res.status(404).json({ message: "Strategy not found" });
       }
       if (results.affectedRows == 1) {
+        console.log({ message: "Strategy updated successfully" })
         return res.status(200).json({ message: "Strategy updated successfully" });
       }
       res.status(500).json({ error: "Unable to update Strategy: " + name });

@@ -114,12 +114,14 @@ exports.createStockTrade = (req, res) => {
     db.query(
       sql,
       [tradeid, asset, tradetype.toUpperCase(), quantity, entryprice, entrydate, openquantity, status.toUpperCase(), capitalused, closedquantity, exitaverageprice, finalexitprice, exitdate, lastmodifieddate, overallreturn, notes, tags],
-      (err, result) => {
+      async (err, result) => {
         if (err) return res.status(500).json(err);
-        if (result.affectedRows === 1)
+        if (result.affectedRows === 1) {
+          const [newRecord] = await db.promise().query("SELECT * FROM stock_orders WHERE tradeid = ?", [tradeid]);
           return res
             .status(201)
-            .json({ message: "New trade added successfully!" });
+            .json({ message: "New trade added successfully!", data: newRecord[0] });
+        }
         res.status(500).json({ message: "Internal server error" });
       }
     );
@@ -136,7 +138,7 @@ exports.getStockTrades = (req, res) => {
   let params = [];
   let query = "SELECT * FROM stock_trades WHERE 1=1";
   if (id !== undefined)
-    query = `SELECT * FROM stock_trades where tradeid = ${id}`; // if id is passed all other params are ignored
+    query = `SELECT * FROM stock_trades where tradeid = "${id}"`; // if id is passed all other params are ignored
   else {
     if (asset) {
       if (Array.isArray(asset)) {
@@ -362,6 +364,7 @@ exports.updateStockTrade = (req, res) => {
 exports.createOptionTrade = (req, res) => {
   const {
     asset,
+    strikeprize,
     quantity,
     tradetype,
     entryprice,
@@ -378,6 +381,13 @@ exports.createOptionTrade = (req, res) => {
     return res.status(400).json({
       error:
         "Missing required fields: lotsize",
+    });
+  }
+  if (
+    !strikeprize) {
+    return res.status(400).json({
+      error:
+        "Missing required fields: strikeprize",
     });
   }
   if (
@@ -477,16 +487,18 @@ exports.createOptionTrade = (req, res) => {
 
   try {
     const sql =
-      "INSERT INTO option_trades (tradeid, lotsize , asset, tradetype, quantity, premiumamount, entryprice, entrydate, openquantity, status,closedquantity,exitaverageprice,finalexitprice,exitdate,lastmodifieddate,overallreturn,notes,tags) VALUES (?,?, ?, ?, ?, ?,?,?,?,?, ?, ?,?,?,?,?,?,?)";
+      "INSERT INTO option_trades (tradeid, lotsize , asset, strikeprize,tradetype, quantity, premiumamount, entryprice, entrydate, openquantity, status,closedquantity,exitaverageprice,finalexitprice,exitdate,lastmodifieddate,overallreturn,notes,tags) VALUES (?,?, ?, ?, ?,?, ?,?,?,?,?, ?, ?,?,?,?,?,?,?)";
     db.query(
       sql,
-      [tradeid, lotsize, asset, tradetype.toUpperCase(), quantity, premiumamount, entryprice, entrydate, openquantity, status.toUpperCase(), closedquantity, exitaverageprice, finalexitprice, exitdate, lastmodifieddate, overallreturn, notes, tags],
-      (err, result) => {
+      [tradeid, lotsize, asset, strikeprize, tradetype.toUpperCase(), quantity, premiumamount, entryprice, entrydate, openquantity, status.toUpperCase(), closedquantity, exitaverageprice, finalexitprice, exitdate, lastmodifieddate, overallreturn, notes, tags],
+      async (err, result) => {
         if (err) return res.status(500).json(err);
-        if (result.affectedRows === 1)
+        if (result.affectedRows === 1) {
+          const [newRecord] = await db.promise().query("SELECT * FROM option_trades WHERE tradeid = ?", [tradeid]);
           return res
             .status(201)
-            .json({ message: "New trade added successfully!" });
+            .json({ message: "New trade added successfully!", data: newRecord[0] });
+        }
         res.status(500).json({ message: "Internal server error" });
       }
     );
@@ -502,7 +514,7 @@ exports.getOptionTrades = (req, res) => {
   let params = [];
   let query = "SELECT * FROM option_trades WHERE 1=1";
   if (id !== undefined)
-    query = `SELECT * FROM option_trades where tradeid = ${id}`; // if id is passed all other params are ignored
+    query = `SELECT * FROM option_trades where tradeid = "${id}"`; // if id is passed all other params are ignored
   else {
     if (asset) {
       if (Array.isArray(asset)) {
@@ -618,7 +630,7 @@ exports.updateOptionTrade = (req, res) => {
       return res.status(404).json({ error: "No trade found with id: " + id });
     }
   });
-  const { asset, lotsize, tradetype, quantity, entryprice, entrydate, openquantity, status, premiumamount, closedquantity, exitaverageprice, finalexitprice, exitdate, lastmodifieddate, overallreturn, notes, tags } =
+  const { asset, lotsize, strikeprize, tradetype, quantity, entryprice, entrydate, openquantity, status, premiumamount, closedquantity, exitaverageprice, finalexitprice, exitdate, lastmodifieddate, overallreturn, notes, tags } =
     req.body;
   // Build the query string to update the trade
   let updateFields = [];
@@ -627,6 +639,11 @@ exports.updateOptionTrade = (req, res) => {
   if (asset !== undefined) {
     updateFields.push("asset");
     updateValues.push(asset);
+  }
+
+  if (strikeprize !== undefined) {
+    updateFields.push("strikeprize");
+    updateValues.push(strikeprize);
   }
 
   if (lotsize !== undefined) {
