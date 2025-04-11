@@ -1,7 +1,7 @@
 const db = require("../db");
 const moment = require("moment");
 exports.createStrategy = (req, res) => {
-  let { name, description, created_at, stock_trades, option_trades, status } = req.body;
+  let { name, description, created_at, stock_trades, option_trades, status, symbol } = req.body;
   if (!name) {
     return res.status(400).json({
       error:
@@ -12,6 +12,12 @@ exports.createStrategy = (req, res) => {
     return res.status(400).json({
       error:
         "Missing required fields: status",
+    });
+  }
+  if (!symbol) {
+    return res.status(400).json({
+      error:
+        "Missing required fields: symbol",
     });
   }
   if (created_at === undefined)
@@ -33,10 +39,10 @@ exports.createStrategy = (req, res) => {
       if (results.length > 0) {
         return res.status(500).json({ message: "Duplicate strategy name not allowed!" });
       }
-      const sql = "INSERT INTO strategies (name, description,status, stock_trades, option_trades, created_at) VALUES (?, ?,?, ?,?,?)";
+      const sql = "INSERT INTO strategies (name, description,status, stock_trades, option_trades, created_at, symbol) VALUES (?, ?,?, ?,?,?,?)";
       db.query(
         sql,
-        [name.toUpperCase(), description, status.toUpperCase(), stock_trades, option_trades, created_at],
+        [name.toUpperCase(), description, status.toUpperCase(), stock_trades, option_trades, created_at, symbol],
         async (err1, result1) => {
           if (err1) {
             return res.status(500).json(err1);
@@ -57,12 +63,18 @@ exports.getStrategies = (req, res) => {
   let { name, id, status, createdafter, createdbefore } = req.query;
   if (id !== undefined) {
     try {
-      db.query("SELECT * FROM strategies WHERE id = ?", [id], (err, results) => {
+      db.query("SELECT * FROM strategies WHERE id = ?", [id], async (err, results) => {
         if (err) return res.status(500).json(err);
         if (results.length === 0) {
           return res.status(404).json({ message: "Strategy not found: " + id });
         }
-        return res.status(200).json(results);
+        // Fetch notes for the strategy
+        const [notes] = await db.promise().query("SELECT * FROM strategy_notes WHERE strategy_id = ? ORDER BY created_at DESC", [id]);
+        const formattedNotes = notes.map(note => ({
+          ...note,
+          created_at: moment(note.created_at).format("YYYY-MM-DD HH:mm:ss")
+        }));
+        return res.status(200).json({ ...results[0], notes: formattedNotes });
       });
     } catch (error) {
       console.error("Error fetching strategies:", error);
@@ -89,11 +101,19 @@ exports.getStrategies = (req, res) => {
     }
     query += " ORDER BY created_at DESC";
     console.log(query)
-    db.query(query, params, (err, results) => {
+    db.query(query, params, async (err, results) => {
       if (err) return res.status(500).json(err);
-      const formattedresults = results.map((results) => ({
-        ...results,
-        created_at: moment(results.created_at).format("YYYY-MM-DD HH:mm"), // Format to YYYY-MM-DD
+      const formattedresults = await Promise.all(results.map(async (result) => {
+        const [notes] = await db.promise().query("SELECT * FROM strategy_notes WHERE strategy_id = ? ORDER BY created_at DESC", [result.id]);
+        const formattedNotes = notes.map(note => ({
+          ...note,
+          created_at: moment(note.created_at).format("YYYY-MM-DD HH:mm:ss")
+        }));
+        return {
+          ...result,
+          created_at: moment(result.created_at).format("YYYY-MM-DD HH:mm"),
+          notes: formattedNotes
+        };
       }));
       res.status(200).json(formattedresults);
     });
@@ -107,6 +127,7 @@ exports.updateStrategy = (req, res) => {
   let stock_trades = req.body.stock_trades;
   let option_trades = req.body.option_trades;
   let status = req.body.status;
+  let symbol = req.body.symbol;
 
   if (stock_trades !== undefined)
     stock_trades = JSON.stringify(stock_trades)
@@ -144,6 +165,10 @@ exports.updateStrategy = (req, res) => {
     updateValues.push(option_trades);
   }
 
+  if (symbol !== undefined) {
+    updateFields.push("symbol");
+    updateValues.push(symbol);
+  }
 
   const sqlQuery = `
             UPDATE strategies
