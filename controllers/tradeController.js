@@ -2,7 +2,7 @@ const db = require("../db");
 const moment = require("moment");
 
 
-exports.createStockTrade = (req, res) => {
+exports.createStockTrade = async (req, res) => {
   const {
     asset,
     quantity,
@@ -11,92 +11,72 @@ exports.createStockTrade = (req, res) => {
     entrydate,
     openquantity,
     status,
-    tradeid
+    tradeid,
+    ltp,
+    strategy_id
   } = req.body;
 
   // Validate mandatory fields
-  if (
-    !asset) {
+  if (!asset) {
     return res.status(400).json({
-      error:
-        "Missing required fields: asset",
+      error: "Missing required fields: asset"
     });
   }
-  if (
-    tradeid === undefined || tradeid === "") {
+  if (tradeid === undefined || tradeid === "") {
     return res.status(400).json({
-      error:
-        "Missing required fields: tradeid",
+      error: "Missing required fields: tradeid"
     });
   }
-  if (
-    !asset) {
+  if (!tradetype) {
     return res.status(400).json({
-      error:
-        "Missing required fields: asset",
+      error: "Missing required fields: tradetype"
     });
   }
-  if (
-    !tradetype) {
+  if (!quantity) {
     return res.status(400).json({
-      error:
-        "Missing required fields: tradetype",
+      error: "Missing required fields: quantity"
     });
   }
-  if (
-    !quantity) {
+  if (!entryprice) {
     return res.status(400).json({
-      error:
-        "Missing required fields: quantity",
+      error: "Missing required fields: entryprice"
     });
   }
-  if (
-    !entryprice) {
+  if (!entrydate) {
     return res.status(400).json({
-      error:
-        "Missing required fields: entryprice",
-    });
-  }
-  if (
-    !entrydate) {
-    return res.status(400).json({
-      error:
-        "Missing required fields: entrydate",
+      error: "Missing required fields: entrydate"
     });
   }
   if (openquantity === undefined) {
     return res.status(400).json({
-      error:
-        "Missing required fields: openquantity",
+      error: "Missing required fields: openquantity"
     });
   }
-  if (
-    !status) {
+  if (!status) {
     return res.status(400).json({
-      error:
-        "Missing required fields: status",
+      error: "Missing required fields: status"
     });
   }
   if (!(status.toUpperCase() === "OPEN" || status.toUpperCase() === "CLOSED")) {
     return res.status(400).json({
-      error: `Incorrect value ${status.toUpperCase()} in status: status can only be OPEN or CLOSED`,
+      error: `Incorrect value ${status.toUpperCase()} in status: status can only be OPEN or CLOSED`
     });
   }
   if (!(tradetype.toUpperCase() === "LONG" || tradetype.toUpperCase() === "SHORT")) {
     return res.status(400).json({
-      error: `Incorrect value ${tradetype.toUpperCase()} in tradetype: tradetype can only be LONG or SHORT`,
+      error: `Incorrect value ${tradetype.toUpperCase()} in tradetype: tradetype can only be LONG or SHORT`
     });
   }
 
-  let notes,
+  let notes = "",
     tags = "";
-  let capitalused = req.body.capitalused
-  let closedquantity = req.body.closedquantity
-  let exitaverageprice = req.body.exitaverageprice
-  let finalexitprice = req.body.finalexitprice
-  let exitdate = req.body.exitdate
-  let lastmodifieddate = req.body.lastmodifieddate
-  let overallreturn = req.body.overallreturn
+  let capitalused = req.body.capitalused;
+  let closedquantity = req.body.closedquantity;
+  let exitaverageprice = req.body.exitaverageprice;
+  let finalexitprice = req.body.finalexitprice;
+  let exitdate = req.body.exitdate;
+  let lastmodifieddate = req.body.lastmodifieddate;
+  let overallreturn = req.body.overallreturn;
 
   if (req.body.notes !== undefined) notes = req.body.notes;
   if (req.body.tags !== undefined) tags = req.body.tags;
@@ -107,118 +87,135 @@ exports.createStockTrade = (req, res) => {
   if (exitdate === undefined) exitdate = null;
   if (lastmodifieddate === undefined) lastmodifieddate = null;
   if (overallreturn === undefined) overallreturn = 0;
+  if (ltp === undefined) ltp = null;
 
   try {
-    const sql =
-      "INSERT INTO stock_trades (tradeid, asset, tradetype, quantity, entryprice, entrydate, openquantity, status,capitalused,closedquantity,exitaverageprice,finalexitprice,exitdate,lastmodifieddate,overallreturn,notes,tags) VALUES (?,?, ?, ?, ?, ?,?,?,?,?, ?, ?, ?, ?,?,?,?)";
-    db.query(
-      sql,
-      [tradeid, asset, tradetype.toUpperCase(), quantity, entryprice, entrydate, openquantity, status.toUpperCase(), capitalused, closedquantity, exitaverageprice, finalexitprice, exitdate, lastmodifieddate, overallreturn, notes, tags],
-      async (err, result) => {
-        if (err) return res.status(500).json(err);
-        if (result.affectedRows === 1) {
-          const [newRecord] = await db.promise().query("SELECT * FROM stock_orders WHERE tradeid = ?", [tradeid]);
-          return res
-            .status(201)
-            .json({ message: "New trade added successfully!", data: newRecord[0] });
-        }
-        res.status(500).json({ message: "Internal server error" });
-      }
-    );
+    const sql = `
+      INSERT INTO stock_trades 
+      (tradeid, asset, tradetype, quantity, entryprice, entrydate, openquantity, status, capitalused, closedquantity, exitaverageprice, finalexitprice, exitdate, lastmodifieddate, overallreturn, notes, tags, ltp, strategy_id) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    const params = [
+      tradeid,
+      asset,
+      tradetype.toUpperCase(),
+      quantity,
+      entryprice,
+      entrydate,
+      openquantity,
+      status.toUpperCase(),
+      capitalused,
+      closedquantity,
+      exitaverageprice,
+      finalexitprice,
+      exitdate,
+      lastmodifieddate,
+      overallreturn,
+      notes,
+      tags,
+      ltp,
+      strategy_id || null
+    ];
+
+    const [result] = await db.pool.query(sql, params);
+
+    if (result.affectedRows === 1) {
+      return res.status(201).json({
+        message: "New trade added successfully!",
+        tradeid: tradeid
+      });
+    }
+
+    return res.status(500).json({ message: "Internal server error" });
   } catch (error) {
-    console.error("Error creating order:", error);
-    res.status(500).json({ message: "Internal server error" });
+    console.error("Error creating trade:", error);
+    return res.status(500).json({
+      message: "Internal server error",
+      error: error.message
+    });
   }
 };
 
 
-exports.getStockTrades = (req, res) => {
+exports.getStockTrades = async (req, res) => {
+  try {
+    console.log('Fetching stock trades with params:', req.query);
+    let { id, strategy_id, entrydate, exitdate, createdafter, createdbefore, status } = req.query;
+    let query = "SELECT * FROM stock_trades WHERE 1=1";
+    let params = [];
 
-  let { id, asset, tradetype, status, entryStartdate, entryEndDate, tags, minimumreturn, maximumreturn, minimumcapitalused, maximumcapitalused } = req.query;
-  let params = [];
-  let query = "SELECT * FROM stock_trades WHERE 1=1";
-  if (id !== undefined)
-    query = `SELECT * FROM stock_trades where tradeid = "${id}"`; // if id is passed all other params are ignored
-  else {
-    if (asset) {
-      if (Array.isArray(asset)) {
-        // to handle multiple stocks
-        query += ` AND asset REGEXP ?`;
-        params.push(asset.join("|"));
-      } else {
-        query += ` AND asset REGEXP ?`;
-        params.push(asset);
-      }
+    if (id !== undefined) {
+      query += " AND id = ?";
+      params.push(id);
     }
-    if (minimumcapitalused) {
-      const parsedPrice = parseFloat(minimumcapitalused);
-      if (isNaN(parsedPrice)) {
-        return res.status(400).send('Invalid minimumcapitalused value, Expected number: ' + minimumcapitalused);
-      }
-      query += " AND capitalused >= ?";
-      params.push(parsedPrice);
+    if (strategy_id !== undefined) {
+      query += " AND strategy_id = ?";
+      params.push(strategy_id);
     }
-    if (maximumcapitalused) {
-      const parsedPrice = parseFloat(maximumcapitalused);
-      if (isNaN(parsedPrice)) {
-        return res.status(400).send('Invalid maximumcapitalused value, Expected number: ' + maximumcapitalused);
-      }
-      query += " AND capitalused <= ?";
-      params.push(parsedPrice);
+    if (entrydate !== undefined) {
+      query += " AND entrydate = ?";
+      params.push(entrydate);
     }
-    if (minimumreturn) {
-      const parsedPrice = parseFloat(minimumreturn);
-      if (isNaN(parsedPrice)) {
-        return res.status(400).send('Invalid minimumreturn value, Expected number: ' + minimumreturn);
-      }
-      query += " AND overallreturn >= ?";
-      params.push(parsedPrice);
+    if (exitdate !== undefined) {
+      query += " AND exitdate = ?";
+      params.push(exitdate);
     }
-    if (maximumreturn) {
-      const parsedPrice = parseFloat(maximumreturn);
-      if (isNaN(parsedPrice)) {
-        return res.status(400).send('Invalid maximumreturn value, Expected number: ' + maximumreturn);
-      }
-      query += " AND overallreturn <= ?";
-      params.push(parsedPrice);
+    if (createdafter !== undefined) {
+      query += " AND created_at >= ?";
+      params.push(createdafter);
     }
-    if (tradetype) {
-      query += " AND tradetype = ?";
-      params.push(tradetype.toUpperCase());
+    if (createdbefore !== undefined) {
+      query += " AND created_at <= ?";
+      params.push(createdbefore);
     }
-    if (entryStartdate) {
-      query += " AND entrydate >= ?";
-      params.push(entryStartdate);
-    }
-    if (entryEndDate) {
-      query += " AND entrydate <= ?";
-      params.push(entryEndDate);
-    }
-    if (status) {
+    if (status !== undefined) {
       query += " AND status = ?";
       params.push(status.toUpperCase());
     }
-    if (tags) {
-      if (Array.isArray(tags)) {
-        // to handle multiple tags
-        query += ` AND tags REGEXP ?`;
-        params.push(tags.join("|")); // Convert array to REGEXP pattern
-      } else {
-        query += " AND tags REGEXP  ?";
-        params.push(tags);
-      }
+
+    query += " ORDER BY entrydate DESC";
+    console.log('Executing query:', query);
+    console.log('With params:', params);
+
+    // Set a timeout for the query
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(new Error('Query timeout after 10 seconds'));
+      }, 10000);
+    });
+
+    const queryPromise = db.pool.query(query, params);
+
+    const [results] = await Promise.race([queryPromise, timeoutPromise]);
+
+    if (!results || results.length === 0) {
+      console.log('No results found');
+      return res.status(200).json([]);
     }
-  }
-  query += " ORDER BY entrydate DESC, STATUS";
-  console.log(query)
-  db.query(query, params, (err, results) => {
-    if (err) return res.status(500).json(err);
-    const formattedresults = results.map((results) => ({
-      ...results,
-      date: moment(results.date).format("YYYY-MM-DD"), // Format to YYYY-MM-DD
+
+    console.log(`Found ${results.length} trades`);
+    const formattedResults = results.map(trade => ({
+      ...trade,
+      entrydate: moment(trade.entrydate).format("YYYY-MM-DD"),
+      exitdate: trade.exitdate ? moment(trade.exitdate).format("YYYY-MM-DD") : null,
+      lastmodifieddate: trade.lastmodifieddate ? moment(trade.lastmodifieddate).format("YYYY-MM-DD") : null
     }));
-    res.status(200).json(formattedresults);
-  });
+
+    return res.status(200).json(formattedResults);
+  } catch (error) {
+    console.error("Error fetching stock trades:", error);
+    if (error.message.includes('timeout')) {
+      return res.status(504).json({
+        message: "Request timeout",
+        error: "The database query took too long to execute"
+      });
+    }
+    return res.status(500).json({
+      message: "Internal server error",
+      error: error.message
+    });
+  }
 };
 
 
@@ -240,361 +237,427 @@ exports.deleteStockTrade = (req, res) => {
 };
 
 
-exports.updateStockTrade = (req, res) => {
+exports.updateStockTrade = async (req, res) => {
   const { id } = req.query;
-  if (id == undefined) {
-    return res.status(500).json({
+  if (id === undefined) {
+    return res.status(400).json({
       status: "fail",
-      error: `id param is required`,
+      error: "id param is required"
     });
   }
-  db.query("SELECT * FROM stock_trades WHERE tradeid = ?", [id], (err, results) => {
-    if (err) return res.status(500).json(err);
-    if (results.length === 0) {
+
+  try {
+    // Check if trade exists
+    const [existingTrade] = await db.pool.query(
+      "SELECT * FROM stock_trades WHERE tradeid = ?",
+      [id]
+    );
+
+    if (existingTrade.length === 0) {
       return res.status(404).json({ error: "No trade found with id: " + id });
     }
-  });
-  const { asset, tradetype, quantity, entryprice, entrydate, openquantity, status, capitalused, closedquantity, exitaverageprice, finalexitprice, exitdate, lastmodifieddate, overallreturn, notes, tags } =
-    req.body;
-  // Build the query string to update the trade
-  let updateFields = [];
-  let updateValues = [];
 
-  if (asset !== undefined) {
-    updateFields.push("asset");
-    updateValues.push(asset);
-  }
+    const {
+      asset,
+      tradetype,
+      quantity,
+      entryprice,
+      entrydate,
+      openquantity,
+      status,
+      capitalused,
+      closedquantity,
+      exitaverageprice,
+      finalexitprice,
+      exitdate,
+      lastmodifieddate,
+      overallreturn,
+      notes,
+      tags,
+      ltp,
+      strategy_id
+    } = req.body;
 
-  if (tradetype !== undefined) {
-    updateFields.push("tradetype");
-    updateValues.push(tradetype);
-  }
+    // Build the query string to update the trade
+    let updateFields = [];
+    let updateValues = [];
 
-  if (quantity !== undefined) {
-    updateFields.push("quantity");
-    updateValues.push(quantity);
-  }
+    if (asset !== undefined) {
+      updateFields.push("asset");
+      updateValues.push(asset);
+    }
+    if (tradetype !== undefined) {
+      updateFields.push("tradetype");
+      updateValues.push(tradetype.toUpperCase());
+    }
+    if (quantity !== undefined) {
+      updateFields.push("quantity");
+      updateValues.push(quantity);
+    }
+    if (entryprice !== undefined) {
+      updateFields.push("entryprice");
+      updateValues.push(entryprice);
+    }
+    if (entrydate !== undefined) {
+      updateFields.push("entrydate");
+      updateValues.push(entrydate);
+    }
+    if (openquantity !== undefined) {
+      updateFields.push("openquantity");
+      updateValues.push(openquantity);
+    }
+    if (notes !== undefined) {
+      updateFields.push("notes");
+      updateValues.push(notes);
+    }
+    if (tags !== undefined) {
+      updateFields.push("tags");
+      updateValues.push(tags);
+    }
+    if (status !== undefined) {
+      updateFields.push("status");
+      updateValues.push(status.toUpperCase());
+    }
+    if (capitalused !== undefined) {
+      updateFields.push("capitalused");
+      updateValues.push(capitalused);
+    }
+    if (closedquantity !== undefined) {
+      updateFields.push("closedquantity");
+      updateValues.push(closedquantity);
+    }
+    if (exitaverageprice !== undefined) {
+      updateFields.push("exitaverageprice");
+      updateValues.push(exitaverageprice);
+    }
+    if (finalexitprice !== undefined) {
+      updateFields.push("finalexitprice");
+      updateValues.push(finalexitprice);
+    }
+    if (exitdate !== undefined) {
+      updateFields.push("exitdate");
+      updateValues.push(exitdate);
+    }
+    if (lastmodifieddate !== undefined) {
+      updateFields.push("lastmodifieddate");
+      updateValues.push(lastmodifieddate);
+    }
+    if (overallreturn !== undefined) {
+      updateFields.push("overallreturn");
+      updateValues.push(overallreturn);
+    }
+    if (ltp !== undefined) {
+      updateFields.push("ltp");
+      updateValues.push(ltp);
+    }
+    if (strategy_id !== undefined) {
+      updateFields.push("strategy_id");
+      updateValues.push(strategy_id);
+    }
 
-  if (entryprice !== undefined) {
-    updateFields.push("entryprice");
-    updateValues.push(entryprice);
-  }
+    if (updateFields.length === 0) {
+      return res.status(400).json({ message: "No fields to update" });
+    }
 
-  if (entrydate !== undefined) {
-    updateFields.push("entrydate");
-    updateValues.push(entrydate);
-  }
+    const sqlQuery = `
+      UPDATE stock_trades
+      SET ${updateFields.map(field => `${field} = ?`).join(", ")}
+      WHERE tradeid = ?
+    `;
+    updateValues.push(id);
 
-  if (openquantity !== undefined) {
-    updateFields.push("openquantity");
-    updateValues.push(openquantity);
-  }
+    const [result] = await db.pool.query(sqlQuery, updateValues);
 
-  if (notes !== undefined) {
-    updateFields.push("notes");
-    updateValues.push(notes);
-  }
+    if (result.affectedRows === 1) {
+      return res.status(200).json({ message: "Trade updated successfully" });
+    }
 
-  if (tags !== undefined) {
-    updateFields.push("tags");
-    updateValues.push(tags);
-  }
-
-  if (status !== undefined) {
-    updateFields.push("status");
-    updateValues.push(status);
-  }
-
-  if (capitalused !== undefined) {
-    updateFields.push("capitalused");
-    updateValues.push(capitalused);
-  }
-
-  if (closedquantity !== undefined) {
-    updateFields.push("closedquantity");
-    updateValues.push(closedquantity);
-  }
-
-  if (exitaverageprice !== undefined) {
-    updateFields.push("exitaverageprice");
-    updateValues.push(exitaverageprice);
-  }
-
-  if (finalexitprice !== undefined) {
-    updateFields.push("finalexitprice");
-    updateValues.push(finalexitprice);
-  }
-
-  if (exitdate !== undefined) {
-    updateFields.push("exitdate");
-    updateValues.push(exitdate);
-  }
-
-  if (lastmodifieddate !== undefined) {
-    updateFields.push("lastmodifieddate");
-    updateValues.push(lastmodifieddate);
-  }
-
-  if (overallreturn !== undefined) {
-    updateFields.push("overallreturn");
-    updateValues.push(overallreturn);
-  }
-
-  const sqlQuery = `
-            UPDATE stock_trades
-            SET ${updateFields.map((field) => `${field} = ?`).join(", ")}
-
-            WHERE tradeid = ?
-        `;
-  updateValues.push(id);
-  try {
-    db.execute(sqlQuery, updateValues, (err, results) => {
-      if (err) return res.status(500).json(err);
-      if (results.affectedRows == 1) {
-        return res.status(200).json({ message: "trade updated successfully" });
-      }
-      res.status(500).json({ error: `Unable to update trade:  ${id}` });
-    });
+    return res.status(500).json({ error: `Unable to update trade: ${id}` });
   } catch (error) {
     console.error("Error updating trade:", error);
-    res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
 
-exports.createOptionTrade = (req, res) => {
-  const {
-    asset,
-    strikeprize,
-    quantity,
-    tradetype,
-    entryprice,
-    entrydate,
-    openquantity,
-    status,
-    tradeid,
-    lotsize
-  } = req.body;
-
-  // Validate mandatory fields
-  if (
-    !lotsize) {
-    return res.status(400).json({
-      error:
-        "Missing required fields: lotsize",
-    });
-  }
-  if (
-    !strikeprize) {
-    return res.status(400).json({
-      error:
-        "Missing required fields: strikeprize",
-    });
-  }
-  if (
-    !asset) {
-    return res.status(400).json({
-      error:
-        "Missing required fields: asset",
-    });
-  }
-  if (
-    tradeid === undefined || tradeid === "") {
-    return res.status(400).json({
-      error:
-        "Missing required fields: tradeid",
-    });
-  }
-  if (
-    !asset) {
-    return res.status(400).json({
-      error:
-        "Missing required fields: asset",
-    });
-  }
-  if (
-    !tradetype) {
-    return res.status(400).json({
-      error:
-        "Missing required fields: tradetype",
-    });
-  }
-  if (
-    !quantity) {
-    return res.status(400).json({
-      error:
-        "Missing required fields: quantity",
-    });
-  }
-  if (
-    !entryprice) {
-    return res.status(400).json({
-      error:
-        "Missing required fields: entryprice",
-    });
-  }
-  if (
-    !entrydate) {
-    return res.status(400).json({
-      error:
-        "Missing required fields: entrydate",
-    });
-  }
-  if (openquantity === undefined) {
-    return res.status(400).json({
-      error:
-        "Missing required fields: openquantity",
-    });
-  }
-  if (
-    !status) {
-    return res.status(400).json({
-      error:
-        "Missing required fields: status",
-    });
-  }
-  if (!(status.toUpperCase() === "OPEN" || status.toUpperCase() === "CLOSED")) {
-    return res.status(400).json({
-      error: `Incorrect value ${status.toUpperCase()} in status: status can only be OPEN or CLOSED`,
-    });
-  }
-  if (!(tradetype.toUpperCase() === "LONG" || tradetype.toUpperCase() === "SHORT")) {
-    return res.status(400).json({
-      error: `Incorrect value ${tradetype.toUpperCase()} in tradetype: tradetype can only be LONG or SHORT`,
-    });
-  }
-
-  let notes,
-    tags = "";
-  let capitalused = req.body.capitalused
-  let closedquantity = req.body.closedquantity
-  let exitaverageprice = req.body.exitaverageprice
-  let finalexitprice = req.body.finalexitprice
-  let exitdate = req.body.exitdate
-  let lastmodifieddate = req.body.lastmodifieddate
-  let overallreturn = req.body.overallreturn
-  let premiumamount = req.body.premiumamount
-
-  if (req.body.notes !== undefined) notes = req.body.notes;
-  if (req.body.tags !== undefined) tags = req.body.tags;
-  if (capitalused === undefined) capitalused = quantity * entryprice * lotsize;
-  if (closedquantity === undefined) closedquantity = quantity - openquantity;
-  if (exitaverageprice === undefined) exitaverageprice = 0;
-  if (finalexitprice === undefined) finalexitprice = 0;
-  if (exitdate === undefined) exitdate = null;
-  if (lastmodifieddate === undefined) lastmodifieddate = null;
-  if (overallreturn === undefined) overallreturn = 0;
-  if (premiumamount === undefined) premiumamount = capitalused;
-
+exports.createOptionTrade = async (req, res) => {
   try {
-    const sql =
-      "INSERT INTO option_trades (tradeid, lotsize , asset, strikeprize,tradetype, quantity, premiumamount, entryprice, entrydate, openquantity, status,closedquantity,exitaverageprice,finalexitprice,exitdate,lastmodifieddate,overallreturn,notes,tags) VALUES (?,?, ?, ?, ?,?, ?,?,?,?,?, ?, ?,?,?,?,?,?,?)";
-    db.query(
-      sql,
-      [tradeid, lotsize, asset, strikeprize, tradetype.toUpperCase(), quantity, premiumamount, entryprice, entrydate, openquantity, status.toUpperCase(), closedquantity, exitaverageprice, finalexitprice, exitdate, lastmodifieddate, overallreturn, notes, tags],
-      async (err, result) => {
-        if (err) return res.status(500).json(err);
-        if (result.affectedRows === 1) {
-          const [newRecord] = await db.promise().query("SELECT * FROM option_trades WHERE tradeid = ?", [tradeid]);
-          return res
-            .status(201)
-            .json({ message: "New trade added successfully!", data: newRecord[0] });
-        }
-        res.status(500).json({ message: "Internal server error" });
-      }
-    );
+    console.log('Creating option trade with data:', req.body);
+    const {
+      asset,
+      strikeprize,
+      quantity,
+      tradetype,
+      entryprice,
+      entrydate,
+      openquantity,
+      status,
+      tradeid,
+      lotsize,
+      ltp,
+      strategy_id
+    } = req.body;
+
+    // Validate mandatory fields
+    if (!lotsize) {
+      return res.status(400).json({
+        error: "Missing required fields: lotsize"
+      });
+    }
+    if (!strikeprize) {
+      return res.status(400).json({
+        error: "Missing required fields: strikeprize"
+      });
+    }
+    if (!asset) {
+      return res.status(400).json({
+        error: "Missing required fields: asset"
+      });
+    }
+    if (tradeid === undefined || tradeid === "") {
+      return res.status(400).json({
+        error: "Missing required fields: tradeid"
+      });
+    }
+    if (!tradetype) {
+      return res.status(400).json({
+        error: "Missing required fields: tradetype"
+      });
+    }
+    if (!quantity) {
+      return res.status(400).json({
+        error: "Missing required fields: quantity"
+      });
+    }
+    if (!entryprice) {
+      return res.status(400).json({
+        error: "Missing required fields: entryprice"
+      });
+    }
+    if (!entrydate) {
+      return res.status(400).json({
+        error: "Missing required fields: entrydate"
+      });
+    }
+    if (openquantity === undefined) {
+      return res.status(400).json({
+        error: "Missing required fields: openquantity"
+      });
+    }
+    if (!status) {
+      return res.status(400).json({
+        error: "Missing required fields: status"
+      });
+    }
+    if (!(status.toUpperCase() === "OPEN" || status.toUpperCase() === "CLOSED")) {
+      return res.status(400).json({
+        error: `Incorrect value ${status.toUpperCase()} in status: status can only be OPEN or CLOSED`
+      });
+    }
+    if (!(tradetype.toUpperCase() === "LONG" || tradetype.toUpperCase() === "SHORT")) {
+      return res.status(400).json({
+        error: `Incorrect value ${tradetype.toUpperCase()} in tradetype: tradetype can only be LONG or SHORT`
+      });
+    }
+
+    let notes = "",
+      tags = "";
+    let capitalused = req.body.capitalused;
+    let closedquantity = req.body.closedquantity;
+    let exitaverageprice = req.body.exitaverageprice;
+    let finalexitprice = req.body.finalexitprice;
+    let exitdate = req.body.exitdate;
+    let lastmodifieddate = req.body.lastmodifieddate;
+    let overallreturn = req.body.overallreturn;
+    let premiumamount = req.body.premiumamount;
+
+    if (req.body.notes !== undefined) notes = req.body.notes;
+    if (req.body.tags !== undefined) tags = req.body.tags;
+    if (capitalused === undefined) capitalused = quantity * entryprice * lotsize;
+    if (closedquantity === undefined) closedquantity = quantity - openquantity;
+    if (exitaverageprice === undefined) exitaverageprice = 0;
+    if (finalexitprice === undefined) finalexitprice = 0;
+    if (exitdate === undefined) exitdate = null;
+    if (lastmodifieddate === undefined) lastmodifieddate = null;
+    if (overallreturn === undefined) overallreturn = 0;
+    if (premiumamount === undefined) premiumamount = capitalused;
+    if (ltp === undefined) ltp = null;
+
+    console.log('Building SQL query');
+    const sql = `
+      INSERT INTO option_trades 
+      (tradeid, lotsize, asset, strikeprize, tradetype, quantity, premiumamount, entryprice, entrydate, openquantity, status, closedquantity, exitaverageprice, finalexitprice, exitdate, lastmodifieddate, overallreturn, notes, tags, ltp, strategy_id) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    const params = [
+      tradeid,
+      lotsize,
+      asset,
+      strikeprize,
+      tradetype.toUpperCase(),
+      quantity,
+      premiumamount,
+      entryprice,
+      entrydate,
+      openquantity,
+      status.toUpperCase(),
+      closedquantity,
+      exitaverageprice,
+      finalexitprice,
+      exitdate,
+      lastmodifieddate,
+      overallreturn,
+      notes,
+      tags,
+      ltp,
+      strategy_id || null
+    ];
+
+    console.log('Executing query with params:', params);
+    const [result] = await db.pool.query(sql, params);
+    console.log('Query result:', result);
+
+    if (result.affectedRows === 1) {
+      console.log('Trade created successfully');
+      return res.status(201).json({
+        message: "New trade added successfully!",
+        tradeid: tradeid
+      });
+    }
+
+    console.log('Failed to create trade');
+    return res.status(500).json({ message: "Internal server error" });
   } catch (error) {
-    console.error("Error creating order:", error);
-    res.status(500).json({ message: "Internal server error" });
+    console.error("Error creating trade:", error);
+    console.error("Error stack:", error.stack);
+    return res.status(500).json({
+      message: "Internal server error",
+      error: error.message
+    });
   }
 };
 
-exports.getOptionTrades = (req, res) => {
+exports.getOptionTrades = async (req, res) => {
+  try {
+    console.log('getOptionTrades called with query params:', req.query);
+    let { id, asset, tradetype, status, entryStartdate, entryEndDate, tags, minimumreturn, maximumreturn, minimumcapitalused, maximumcapitalused } = req.query;
+    let params = [];
+    let query = "SELECT * FROM option_trades WHERE 1=1";
 
-  let { id, asset, tradetype, status, entryStartdate, entryEndDate, tags, minimumreturn, maximumreturn, minimumcapitalused, maximumcapitalused } = req.query;
-  let params = [];
-  let query = "SELECT * FROM option_trades WHERE 1=1";
-  if (id !== undefined)
-    query = `SELECT * FROM option_trades where tradeid = "${id}"`; // if id is passed all other params are ignored
-  else {
-    if (asset) {
-      if (Array.isArray(asset)) {
-        // to handle multiple options
-        query += ` AND asset REGEXP ?`;
-        params.push(asset.join("|"));
-      } else {
-        query += ` AND asset REGEXP ?`;
-        params.push(asset);
+    if (id !== undefined) {
+      console.log('Fetching by ID:', id);
+      query = `SELECT * FROM option_trades WHERE tradeid = ?`;
+      params.push(id);
+    } else {
+      console.log('Building query with filters');
+      if (asset) {
+        if (Array.isArray(asset)) {
+          query += ` AND asset REGEXP ?`;
+          params.push(asset.join("|"));
+        } else {
+          query += ` AND asset REGEXP ?`;
+          params.push(asset);
+        }
+        console.log('Added asset filter:', asset);
+      }
+      if (minimumcapitalused) {
+        const parsedPrice = parseFloat(minimumcapitalused);
+        if (isNaN(parsedPrice)) {
+          return res.status(400).send('Invalid minimumcapitalused value, Expected number: ' + minimumcapitalused);
+        }
+        query += " AND capitalused >= ?";
+        params.push(parsedPrice);
+        console.log('Added minimumcapitalused filter:', parsedPrice);
+      }
+      if (maximumcapitalused) {
+        const parsedPrice = parseFloat(maximumcapitalused);
+        if (isNaN(parsedPrice)) {
+          return res.status(400).send('Invalid maximumcapitalused value, Expected number: ' + maximumcapitalused);
+        }
+        query += " AND capitalused <= ?";
+        params.push(parsedPrice);
+        console.log('Added maximumcapitalused filter:', parsedPrice);
+      }
+      if (minimumreturn) {
+        const parsedPrice = parseFloat(minimumreturn);
+        if (isNaN(parsedPrice)) {
+          return res.status(400).send('Invalid minimumreturn value, Expected number: ' + minimumreturn);
+        }
+        query += " AND overallreturn >= ?";
+        params.push(parsedPrice);
+        console.log('Added minimumreturn filter:', parsedPrice);
+      }
+      if (maximumreturn) {
+        const parsedPrice = parseFloat(maximumreturn);
+        if (isNaN(parsedPrice)) {
+          return res.status(400).send('Invalid maximumreturn value, Expected number: ' + maximumreturn);
+        }
+        query += " AND overallreturn <= ?";
+        params.push(parsedPrice);
+        console.log('Added maximumreturn filter:', parsedPrice);
+      }
+      if (tradetype) {
+        query += " AND tradetype = ?";
+        params.push(tradetype.toUpperCase());
+        console.log('Added tradetype filter:', tradetype.toUpperCase());
+      }
+      if (entryStartdate) {
+        query += " AND entrydate >= ?";
+        params.push(entryStartdate);
+        console.log('Added entryStartdate filter:', entryStartdate);
+      }
+      if (entryEndDate) {
+        query += " AND entrydate <= ?";
+        params.push(entryEndDate);
+        console.log('Added entryEndDate filter:', entryEndDate);
+      }
+      if (status) {
+        query += " AND status = ?";
+        params.push(status.toUpperCase());
+        console.log('Added status filter:', status.toUpperCase());
+      }
+      if (tags) {
+        if (Array.isArray(tags)) {
+          query += ` AND tags REGEXP ?`;
+          params.push(tags.join("|"));
+        } else {
+          query += " AND tags REGEXP  ?";
+          params.push(tags);
+        }
+        console.log('Added tags filter:', tags);
       }
     }
-    if (minimumcapitalused) {
-      const parsedPrice = parseFloat(minimumcapitalused);
-      if (isNaN(parsedPrice)) {
-        return res.status(400).send('Invalid minimumcapitalused value, Expected number: ' + minimumcapitalused);
-      }
-      query += " AND capitalused >= ?";
-      params.push(parsedPrice);
+    query += " ORDER BY entrydate DESC, STATUS";
+    console.log('Final query:', query);
+    console.log('Query parameters:', params);
+
+    // Execute query using promise
+    const [results] = await db.pool.query(query, params);
+    console.log('Raw query results:', results);
+
+    if (!results || results.length === 0) {
+      console.log('No results found');
+      return res.status(200).json([]);
     }
-    if (maximumcapitalused) {
-      const parsedPrice = parseFloat(maximumcapitalused);
-      if (isNaN(parsedPrice)) {
-        return res.status(400).send('Invalid maximumcapitalused value, Expected number: ' + maximumcapitalused);
-      }
-      query += " AND capitalused <= ?";
-      params.push(parsedPrice);
-    }
-    if (minimumreturn) {
-      const parsedPrice = parseFloat(minimumreturn);
-      if (isNaN(parsedPrice)) {
-        return res.status(400).send('Invalid minimumreturn value, Expected number: ' + minimumreturn);
-      }
-      query += " AND overallreturn >= ?";
-      params.push(parsedPrice);
-    }
-    if (maximumreturn) {
-      const parsedPrice = parseFloat(maximumreturn);
-      if (isNaN(parsedPrice)) {
-        return res.status(400).send('Invalid maximumreturn value, Expected number: ' + maximumreturn);
-      }
-      query += " AND overallreturn <= ?";
-      params.push(parsedPrice);
-    }
-    if (tradetype) {
-      query += " AND tradetype = ?";
-      params.push(tradetype.toUpperCase());
-    }
-    if (entryStartdate) {
-      query += " AND entrydate >= ?";
-      params.push(entryStartdate);
-    }
-    if (entryEndDate) {
-      query += " AND entrydate <= ?";
-      params.push(entryEndDate);
-    }
-    if (status) {
-      query += " AND status = ?";
-      params.push(status.toUpperCase());
-    }
-    if (tags) {
-      if (Array.isArray(tags)) {
-        // to handle multiple tags
-        query += ` AND tags REGEXP ?`;
-        params.push(tags.join("|")); // Convert array to REGEXP pattern
-      } else {
-        query += " AND tags REGEXP  ?";
-        params.push(tags);
-      }
-    }
-  }
-  query += " ORDER BY entrydate DESC, STATUS";
-  console.log(query)
-  db.query(query, params, (err, results) => {
-    if (err) return res.status(500).json(err);
-    const formattedresults = results.map((results) => ({
-      ...results,
-      date: moment(results.date).format("YYYY-MM-DD"), // Format to YYYY-MM-DD
+
+    const formattedresults = results.map((result) => ({
+      ...result,
+      entrydate: moment(result.entrydate).format("YYYY-MM-DD"),
+      exitdate: result.exitdate ? moment(result.exitdate).format("YYYY-MM-DD") : null,
+      lastmodifieddate: result.lastmodifieddate ? moment(result.lastmodifieddate).format("YYYY-MM-DD") : null
     }));
-    res.status(200).json(formattedresults);
-  });
+
+    console.log('Formatted results:', formattedresults);
+    return res.status(200).json(formattedresults);
+  } catch (error) {
+    console.error('Error in getOptionTrades:', error);
+    console.error('Error stack:', error.stack);
+    return res.status(500).json({
+      error: 'Internal server error',
+      message: error.message,
+      stack: error.stack
+    });
+  }
 };
 
 
@@ -616,133 +679,154 @@ exports.deleteOptionTrade = (req, res) => {
 };
 
 
-exports.updateOptionTrade = (req, res) => {
+exports.updateOptionTrade = async (req, res) => {
   const { id } = req.query;
-  if (id == undefined) {
-    return res.status(500).json({
+  if (id === undefined) {
+    return res.status(400).json({
       status: "fail",
-      error: `id param is required`,
+      error: "id param is required"
     });
   }
-  db.query("SELECT * FROM option_trades WHERE tradeid = ?", [id], (err, results) => {
-    if (err) return res.status(500).json(err);
-    if (results.length === 0) {
+
+  try {
+    // Check if trade exists
+    const [existingTrade] = await db.pool.query(
+      "SELECT * FROM option_trades WHERE tradeid = ?",
+      [id]
+    );
+
+    if (existingTrade.length === 0) {
       return res.status(404).json({ error: "No trade found with id: " + id });
     }
-  });
-  const { asset, lotsize, strikeprize, tradetype, quantity, entryprice, entrydate, openquantity, status, premiumamount, closedquantity, exitaverageprice, finalexitprice, exitdate, lastmodifieddate, overallreturn, notes, tags } =
-    req.body;
-  // Build the query string to update the trade
-  let updateFields = [];
-  let updateValues = [];
 
-  if (asset !== undefined) {
-    updateFields.push("asset");
-    updateValues.push(asset);
-  }
+    const {
+      asset,
+      lotsize,
+      strikeprize,
+      tradetype,
+      quantity,
+      entryprice,
+      entrydate,
+      openquantity,
+      status,
+      premiumamount,
+      closedquantity,
+      exitaverageprice,
+      finalexitprice,
+      exitdate,
+      lastmodifieddate,
+      overallreturn,
+      notes,
+      tags,
+      ltp,
+      strategy_id
+    } = req.body;
 
-  if (strikeprize !== undefined) {
-    updateFields.push("strikeprize");
-    updateValues.push(strikeprize);
-  }
+    // Build the query string to update the trade
+    let updateFields = [];
+    let updateValues = [];
 
-  if (lotsize !== undefined) {
-    updateFields.push("lotsize");
-    updateValues.push(lotsize);
-  }
+    if (asset !== undefined) {
+      updateFields.push("asset");
+      updateValues.push(asset);
+    }
+    if (strikeprize !== undefined) {
+      updateFields.push("strikeprize");
+      updateValues.push(strikeprize);
+    }
+    if (lotsize !== undefined) {
+      updateFields.push("lotsize");
+      updateValues.push(lotsize);
+    }
+    if (tradetype !== undefined) {
+      updateFields.push("tradetype");
+      updateValues.push(tradetype.toUpperCase());
+    }
+    if (quantity !== undefined) {
+      updateFields.push("quantity");
+      updateValues.push(quantity);
+    }
+    if (entryprice !== undefined) {
+      updateFields.push("entryprice");
+      updateValues.push(entryprice);
+    }
+    if (entrydate !== undefined) {
+      updateFields.push("entrydate");
+      updateValues.push(entrydate);
+    }
+    if (openquantity !== undefined) {
+      updateFields.push("openquantity");
+      updateValues.push(openquantity);
+    }
+    if (notes !== undefined) {
+      updateFields.push("notes");
+      updateValues.push(notes);
+    }
+    if (tags !== undefined) {
+      updateFields.push("tags");
+      updateValues.push(tags);
+    }
+    if (status !== undefined) {
+      updateFields.push("status");
+      updateValues.push(status.toUpperCase());
+    }
+    if (premiumamount !== undefined) {
+      updateFields.push("premiumamount");
+      updateValues.push(premiumamount);
+    }
+    if (closedquantity !== undefined) {
+      updateFields.push("closedquantity");
+      updateValues.push(closedquantity);
+    }
+    if (exitaverageprice !== undefined) {
+      updateFields.push("exitaverageprice");
+      updateValues.push(exitaverageprice);
+    }
+    if (finalexitprice !== undefined) {
+      updateFields.push("finalexitprice");
+      updateValues.push(finalexitprice);
+    }
+    if (exitdate !== undefined) {
+      updateFields.push("exitdate");
+      updateValues.push(exitdate);
+    }
+    if (lastmodifieddate !== undefined) {
+      updateFields.push("lastmodifieddate");
+      updateValues.push(lastmodifieddate);
+    }
+    if (overallreturn !== undefined) {
+      updateFields.push("overallreturn");
+      updateValues.push(overallreturn);
+    }
+    if (ltp !== undefined) {
+      updateFields.push("ltp");
+      updateValues.push(ltp);
+    }
+    if (strategy_id !== undefined) {
+      updateFields.push("strategy_id");
+      updateValues.push(strategy_id);
+    }
 
-  if (tradetype !== undefined) {
-    updateFields.push("tradetype");
-    updateValues.push(tradetype);
-  }
+    if (updateFields.length === 0) {
+      return res.status(400).json({ message: "No fields to update" });
+    }
 
-  if (quantity !== undefined) {
-    updateFields.push("quantity");
-    updateValues.push(quantity);
-  }
+    const sqlQuery = `
+      UPDATE option_trades
+      SET ${updateFields.map(field => `${field} = ?`).join(", ")}
+      WHERE tradeid = ?
+    `;
+    updateValues.push(id);
 
-  if (entryprice !== undefined) {
-    updateFields.push("entryprice");
-    updateValues.push(entryprice);
-  }
+    const [result] = await db.pool.query(sqlQuery, updateValues);
 
-  if (entrydate !== undefined) {
-    updateFields.push("entrydate");
-    updateValues.push(entrydate);
-  }
+    if (result.affectedRows === 1) {
+      return res.status(200).json({ message: "Trade updated successfully" });
+    }
 
-  if (openquantity !== undefined) {
-    updateFields.push("openquantity");
-    updateValues.push(openquantity);
-  }
-
-  if (notes !== undefined) {
-    updateFields.push("notes");
-    updateValues.push(notes);
-  }
-
-  if (tags !== undefined) {
-    updateFields.push("tags");
-    updateValues.push(tags);
-  }
-
-  if (status !== undefined) {
-    updateFields.push("status");
-    updateValues.push(status);
-  }
-
-  if (premiumamount !== undefined) {
-    updateFields.push("premiumamount");
-    updateValues.push(premiumamount);
-  }
-
-  if (closedquantity !== undefined) {
-    updateFields.push("closedquantity");
-    updateValues.push(closedquantity);
-  }
-
-  if (exitaverageprice !== undefined) {
-    updateFields.push("exitaverageprice");
-    updateValues.push(exitaverageprice);
-  }
-
-  if (finalexitprice !== undefined) {
-    updateFields.push("finalexitprice");
-    updateValues.push(finalexitprice);
-  }
-
-  if (exitdate !== undefined) {
-    updateFields.push("exitdate");
-    updateValues.push(exitdate);
-  }
-
-  if (lastmodifieddate !== undefined) {
-    updateFields.push("lastmodifieddate");
-    updateValues.push(lastmodifieddate);
-  }
-
-  if (overallreturn !== undefined) {
-    updateFields.push("overallreturn");
-    updateValues.push(overallreturn);
-  }
-
-  const sqlQuery = `
-            UPDATE option_trades
-            SET ${updateFields.map((field) => `${field} = ?`).join(", ")}
-
-            WHERE tradeid = ?
-        `;
-  updateValues.push(id);
-  try {
-    db.execute(sqlQuery, updateValues, (err, results) => {
-      if (err) return res.status(500).json(err);
-      if (results.affectedRows == 1) {
-        return res.status(200).json({ message: "trade updated successfully" });
-      }
-      res.status(500).json({ error: `Unable to update trade:  ${id}` });
-    });
+    return res.status(500).json({ error: `Unable to update trade: ${id}` });
   } catch (error) {
     console.error("Error updating trade:", error);
-    res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: "Internal server error" });
   }
 };

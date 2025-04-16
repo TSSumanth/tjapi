@@ -1,7 +1,7 @@
 const db = require("../db");
 const moment = require("moment");
 
-exports.createEntry = (req, res) => {
+exports.createEntry = async (req, res) => {
   const {
     date,
     stocks_realised,
@@ -11,102 +11,100 @@ exports.createEntry = (req, res) => {
   } = req.body;
 
   try {
-    db.query(
+    // Check if entry exists
+    const [existingEntries] = await db.pool.query(
       "SELECT * FROM profit_loss_report WHERE date = ?",
-      [date],
-      (err, results) => {
-        if (err) return res.status(500).json(err);
-        if (results.length === 1) {
-          return res.status(500).json({
-            message: "Entry is already present for the selected date: " + date,
-          });
-        }
-        const sql =
-          "INSERT INTO profit_loss_report (date, stocks_realised, stocks_unrealised, fo_realised, fo_unrealised, stock_pl, fo_pl, total_pl) VALUES (?, ?, ?, ?, ?,?,?,?)";
-
-        db.query(
-          sql,
-          [
-            date,
-            Number(stocks_realised),
-            Number(stocks_unrealised),
-            Number(fo_realised),
-            Number(fo_unrealised),
-            Number(stocks_realised) + Number(stocks_unrealised),
-            Number(fo_realised) + Number(fo_unrealised),
-            Number(stocks_realised) + Number(stocks_unrealised) + Number(fo_realised) + Number(fo_unrealised),
-          ],
-          (err, result) => {
-            if (err) return res.status(500).json(err);
-            res.status(201).json({ message: "New entry added successfully!" });
-          }
-        );
-      }
+      [date]
     );
+
+    if (existingEntries.length === 1) {
+      return res.status(500).json({
+        message: "Entry is already present for the selected date: " + date,
+      });
+    }
+
+    // Insert new entry
+    const [result] = await db.pool.query(
+      "INSERT INTO profit_loss_report (date, stocks_realised, stocks_unrealised, fo_realised, fo_unrealised, stock_pl, fo_pl, total_pl) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      [
+        date,
+        Number(stocks_realised),
+        Number(stocks_unrealised),
+        Number(fo_realised),
+        Number(fo_unrealised),
+        Number(stocks_realised) + Number(stocks_unrealised),
+        Number(fo_realised) + Number(fo_unrealised),
+        Number(stocks_realised) + Number(stocks_unrealised) + Number(fo_realised) + Number(fo_unrealised),
+      ]
+    );
+
+    res.status(201).json({ message: "New entry added successfully!" });
   } catch (error) {
-    console.error("Error fetching Entry:", error);
+    console.error("Error creating Entry:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
 
-exports.getAllEntries = (req, res) => {
-  db.query(
-    "SELECT * FROM profit_loss_report ORDER BY date DESC",
-    (err, results) => {
-      if (err) return res.status(500).json(err);
-      const formattedresults = results.map((results) => ({
-        ...results,
-        date: moment(results.date).format("YYYY-MM-DD"), // Format to YYYY-MM-DD
-      }));
-      res.json(formattedresults);
-    }
-  );
+exports.getAllEntries = async (req, res) => {
+  try {
+    const [results] = await db.pool.query(
+      "SELECT * FROM profit_loss_report ORDER BY date DESC"
+    );
+
+    const formattedResults = results.map(result => ({
+      ...result,
+      date: moment(result.date).format("YYYY-MM-DD")
+    }));
+
+    res.json(formattedResults);
+  } catch (error) {
+    console.error("Error fetching all entries:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
 };
 
-exports.getEntry = (req, res) => {
+exports.getEntry = async (req, res) => {
   const { date, startdate, enddate } = req.query;
 
   try {
     if (date) {
-      db.query(
+      const [results] = await db.pool.query(
         "SELECT * FROM profit_loss_report WHERE date = ?",
-        [date],
-        (err, results) => {
-          if (err) return res.status(500).json(err);
-          if (results.length === 0) {
-            return res
-              .status(404)
-              .json({ message: "Entry not found for date: " + date });
-          }
-          const formattedresults = results.map((results) => ({
-            ...results,
-            date: moment(results.date).format("YYYY-MM-DD"), // Format to YYYY-MM-DD
-          }));
-          res.status(200).json(formattedresults);
-        }
+        [date]
       );
-    }
-    else {
-      console.log("Range date")
-      console.log(startdate, enddate)
-      db.query(
-        "SELECT * FROM profit_loss_report WHERE date >= ? and date <= ?  ORDER BY date DESC",
-        [startdate, enddate],
-        (err, results) => {
-          if (err) return res.status(500).json(err);
-          if (results.length === 0) {
-            return res
-              .status(200)
-              .json({ message: "No Data Found in Date Range: " + startdate + " - "+ enddate});
-          }
-          const formattedresults = results.map((results) => ({
-            ...results,
-            date: moment(results.date).format("YYYY-MM-DD"), // Format to YYYY-MM-DD
-          }));
-          console.log(formattedresults)
-          res.status(200).json(formattedresults);
-        }
+
+      if (results.length === 0) {
+        return res.status(404).json({
+          message: "Entry not found for date: " + date
+        });
+      }
+
+      const formattedResults = results.map(result => ({
+        ...result,
+        date: moment(result.date).format("YYYY-MM-DD")
+      }));
+
+      res.status(200).json(formattedResults);
+    } else {
+      console.log("Range date:", startdate, enddate);
+
+      const [results] = await db.pool.query(
+        "SELECT * FROM profit_loss_report WHERE date >= ? AND date <= ? ORDER BY date DESC",
+        [startdate, enddate]
       );
+
+      if (results.length === 0) {
+        return res.status(200).json({
+          message: `No Data Found in Date Range: ${startdate} - ${enddate}`
+        });
+      }
+
+      const formattedResults = results.map(result => ({
+        ...result,
+        date: moment(result.date).format("YYYY-MM-DD")
+      }));
+
+      res.status(200).json(formattedResults);
     }
   } catch (error) {
     console.error("Error fetching Entry:", error);

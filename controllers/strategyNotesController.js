@@ -1,107 +1,132 @@
 const db = require("../db");
 const moment = require("moment");
 
-exports.createStrategyNote = (req, res) => {
-    const { strategy_id, content } = req.body;
+exports.createStrategyNote = async (req, res) => {
+    const { strategy_id, content, created_at } = req.body;
 
-    if (!strategy_id) {
-        return res.status(400).json({
-            error: "Missing required field: strategy_id"
-        });
-    }
+    try {
+        // Validate required fields
+        if (!strategy_id || !content) {
+            return res.status(400).json({
+                error: "Missing required fields: strategy_id and content"
+            });
+        }
 
-    if (!content) {
-        return res.status(400).json({
-            error: "Missing required field: content"
-        });
-    }
+        // Check if strategy exists
+        const [strategy] = await db.pool.query(
+            "SELECT id FROM strategies WHERE id = ?",
+            [strategy_id]
+        );
 
-    const created_at = new Date();
+        if (strategy.length === 0) {
+            return res.status(404).json({
+                error: "Strategy not found"
+            });
+        }
 
-    const sql = "INSERT INTO strategy_notes (strategy_id, content, created_at) VALUES (?, ?, ?)";
-
-    db.query(sql, [strategy_id, content, created_at], async (err, result) => {
-        if (err) return res.status(500).json(err);
+        // Insert new note
+        const [result] = await db.pool.query(
+            "INSERT INTO strategy_notes (strategy_id, content, created_at) VALUES (?, ?, ?)",
+            [strategy_id, content, created_at || new Date()]
+        );
 
         if (result.affectedRows === 1) {
-            const [newNote] = await db.promise().query("SELECT * FROM strategy_notes WHERE id = ?", [result.insertId]);
+            const [newNote] = await db.pool.query(
+                "SELECT * FROM strategy_notes WHERE id = ?",
+                [result.insertId]
+            );
             return res.status(201).json(newNote[0]);
         }
 
-        res.status(500).json({ error: "Unable to create note" });
-    });
+        return res.status(500).json({
+            error: "Unable to create strategy note"
+        });
+    } catch (error) {
+        console.error("Error creating strategy note:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
 };
 
-exports.getStrategyNotes = (req, res) => {
+exports.getStrategyNotes = async (req, res) => {
     const { strategy_id } = req.query;
 
-    if (!strategy_id) {
-        return res.status(400).json({
-            error: "Missing required field: strategy_id"
-        });
-    }
+    try {
+        if (!strategy_id) {
+            return res.status(400).json({
+                error: "Strategy ID is required"
+            });
+        }
 
-    const sql = "SELECT * FROM strategy_notes WHERE strategy_id = ? ORDER BY created_at DESC";
+        const [notes] = await db.pool.query(
+            "SELECT * FROM strategy_notes WHERE strategy_id = ? ORDER BY created_at DESC",
+            [strategy_id]
+        );
 
-    db.query(sql, [strategy_id], (err, results) => {
-        if (err) return res.status(500).json(err);
-
-        const formattedResults = results.map(note => ({
+        const formattedNotes = notes.map(note => ({
             ...note,
             created_at: moment(note.created_at).format("YYYY-MM-DD HH:mm:ss")
         }));
 
-        res.status(200).json(formattedResults);
-    });
+        return res.status(200).json(formattedNotes);
+    } catch (error) {
+        console.error("Error fetching strategy notes:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
 };
 
-exports.updateStrategyNote = (req, res) => {
+exports.updateStrategyNote = async (req, res) => {
     const { id } = req.query;
     const { content } = req.body;
 
-    if (!id) {
-        return res.status(400).json({
-            error: "Missing required field: id"
-        });
-    }
-
-    if (!content) {
-        return res.status(400).json({
-            error: "Missing required field: content"
-        });
-    }
-
-    const sql = "UPDATE strategy_notes SET content = ? WHERE id = ?";
-
-    db.query(sql, [content, id], (err, result) => {
-        if (err) return res.status(500).json(err);
-
-        if (result.affectedRows === 1) {
-            return res.status(200).json({ message: "Note updated successfully" });
+    try {
+        if (!id || !content) {
+            return res.status(400).json({
+                error: "Note ID and updated content are required"
+            });
         }
 
-        res.status(404).json({ error: "Note not found" });
-    });
+        const [result] = await db.pool.query(
+            "UPDATE strategy_notes SET content = ? WHERE id = ?",
+            [content, id]
+        );
+
+        if (result.affectedRows === 1) {
+            return res.status(200).json({ message: "Strategy note updated successfully" });
+        }
+
+        return res.status(404).json({
+            error: `No strategy note found with id: ${id}`
+        });
+    } catch (error) {
+        console.error("Error updating strategy note:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
 };
 
-exports.deleteStrategyNote = (req, res) => {
+exports.deleteStrategyNote = async (req, res) => {
     const { id } = req.query;
 
-    if (!id) {
-        return res.status(400).json({
-            error: "Missing required field: id"
-        });
-    }
-
-    const sql = "DELETE FROM strategy_notes WHERE id = ?";
-
-    db.query(sql, [id], (err, result) => {
-        if (err) return res.status(500).json(err);
-
-        if (result.affectedRows === 1) {
-            return res.status(204).json();
+    try {
+        if (!id) {
+            return res.status(400).json({
+                error: "Note ID is required"
+            });
         }
 
-        res.status(404).json({ error: "Note not found" });
-    });
+        const [result] = await db.pool.query(
+            "DELETE FROM strategy_notes WHERE id = ?",
+            [id]
+        );
+
+        if (result.affectedRows === 1) {
+            return res.status(200).json({ message: "Strategy note deleted successfully" });
+        }
+
+        return res.status(404).json({
+            error: `No strategy note found with id: ${id}`
+        });
+    } catch (error) {
+        console.error("Error deleting strategy note:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
 }; 
