@@ -258,59 +258,67 @@ exports.createStockOrder = async (req, res) => {
   }
 };
 
-exports.getStockOrders = (req, res) => {
-  let { id, asset, ordertype, startDate, endDate, tradeid, tags } = req.query;
-  let params = [];
-  let query = "SELECT * FROM stock_orders WHERE 1=1";
-  if (id !== undefined)
-    query = `SELECT * FROM stock_orders where id = ${id}`; // if id is passed all other params are ignored
-  else {
-    if (asset) {
-      if (Array.isArray(asset)) {
-        // to handle multiple stocks
-        query += ` AND asset REGEXP ?`;
-        params.push(asset.join("|"));
-      } else {
-        query += ` AND asset REGEXP ?`;
-        params.push(asset);
+exports.getStockOrders = async (req, res) => {
+  try {
+    let { id, asset, ordertype, startDate, endDate, tradeid, tags } = req.query;
+    let params = [];
+    let query = "SELECT * FROM stock_orders WHERE 1=1";
+
+    if (id !== undefined) {
+      query = `SELECT * FROM stock_orders WHERE id = ?`;
+      params.push(id);
+    } else {
+      if (asset) {
+        if (Array.isArray(asset)) {
+          query += ` AND asset REGEXP ?`;
+          params.push(asset.join("|"));
+        } else {
+          query += ` AND asset REGEXP ?`;
+          params.push(asset);
+        }
+      }
+      if (ordertype) {
+        query += " AND ordertype = ?";
+        params.push(ordertype.toUpperCase());
+      }
+      if (startDate) {
+        query += " AND date >= ?";
+        params.push(startDate);
+      }
+      if (endDate) {
+        query += " AND date <= ?";
+        params.push(endDate);
+      }
+      if (tradeid) {
+        query += " AND tradeid = ?";
+        params.push(tradeid);
+      }
+      if (tags) {
+        if (Array.isArray(tags)) {
+          query += ` AND tags REGEXP ?`;
+          params.push(tags.join("|"));
+        } else {
+          query += " AND tags REGEXP ?";
+          params.push(tags);
+        }
       }
     }
-    if (ordertype) {
-      query += " AND ordertype = ?";
-      params.push(ordertype.toUpperCase());
-    }
-    if (startDate) {
-      query += " AND date >= ?";
-      params.push(startDate);
-    }
-    if (endDate) {
-      query += " AND date <= ?";
-      params.push(endDate);
-    }
-    if (tradeid) {
-      query += " AND tradeid = ?";
-      params.push(tradeid);
-    }
-    if (tags) {
-      if (Array.isArray(tags)) {
-        // to handle multiple tags
-        query += ` AND tags REGEXP ?`;
-        params.push(tags.join("|")); // Convert array to REGEXP pattern
-      } else {
-        query += " AND tags REGEXP ?";
-        params.push(tags);
-      }
-    }
-  }
-  query += " ORDER BY date DESC";
-  db.query(query, params, (err, results) => {
-    if (err) return res.status(500).json(err);
-    const formattedresults = results.map((results) => ({
-      ...results,
-      date: moment(results.date).format("YYYY-MM-DD"), // Format to YYYY-MM-DD
+    query += " ORDER BY date DESC";
+
+    const [results] = await db.pool.query(query, params);
+    const formattedResults = results.map((result) => ({
+      ...result,
+      date: moment(result.date).format("YYYY-MM-DD")
     }));
-    res.status(200).json(formattedresults);
-  });
+
+    return res.status(200).json(formattedResults);
+  } catch (error) {
+    console.error("Error fetching stock orders:", error);
+    return res.status(500).json({
+      message: "Internal server error",
+      error: error.message
+    });
+  }
 };
 
 exports.deleteStockOrder = async (req, res) => {

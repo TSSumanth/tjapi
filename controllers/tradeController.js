@@ -219,20 +219,45 @@ exports.getStockTrades = async (req, res) => {
 };
 
 
-exports.deleteStockTrade = (req, res) => {
+exports.deleteStockTrade = async (req, res) => {
   const { id } = req.query;
+  if (!id) {
+    return res.status(400).json({
+      error: "Missing required parameter: id"
+    });
+  }
+
   try {
-    db.query("Delete FROM stock_trades WHERE tradeid = ?", [id], (err, results) => {
-      if (err) return res.status(500).json(err);
-      if (results.affectedRows == 1) return res.status(204).json({});
-      else
-        return res.status(500).json({
-          error: `No Stock trade available to delete with id:${id}`,
-        });
+    // Check if trade exists first
+    const [existingTrade] = await db.pool.query(
+      "SELECT * FROM stock_trades WHERE tradeid = ?",
+      [id]
+    );
+
+    if (existingTrade.length === 0) {
+      return res.status(404).json({
+        error: `No stock trade found with tradeid: ${id}`
+      });
+    }
+
+    const [result] = await db.pool.query(
+      "DELETE FROM stock_trades WHERE tradeid = ?",
+      [id]
+    );
+
+    if (result.affectedRows === 1) {
+      return res.status(204).send();
+    }
+
+    return res.status(500).json({
+      error: `Unable to delete stock trade with tradeid: ${id}`
     });
   } catch (error) {
-    console.error("Error deleting Stock trade:", error);
-    res.status(500).json({ message: "Internal server error: " + error });
+    console.error("Error deleting stock trade:", error);
+    return res.status(500).json({
+      message: "Internal server error",
+      error: error.message
+    });
   }
 };
 
@@ -661,20 +686,45 @@ exports.getOptionTrades = async (req, res) => {
 };
 
 
-exports.deleteOptionTrade = (req, res) => {
+exports.deleteOptionTrade = async (req, res) => {
   const { id } = req.query;
+  if (!id) {
+    return res.status(400).json({
+      error: "Missing required parameter: id"
+    });
+  }
+
   try {
-    db.query("Delete FROM option_trades WHERE tradeid = ?", [id], (err, results) => {
-      if (err) return res.status(500).json(err);
-      if (results.affectedRows == 1) return res.status(204).json({});
-      else
-        return res.status(500).json({
-          error: `No Option trade available to delete with id:${id}`,
-        });
+    // Check if trade exists first
+    const [existingTrade] = await db.pool.query(
+      "SELECT * FROM option_trades WHERE tradeid = ?",
+      [id]
+    );
+
+    if (existingTrade.length === 0) {
+      return res.status(404).json({
+        error: `No option trade found with tradeid: ${id}`
+      });
+    }
+
+    const [result] = await db.pool.query(
+      "DELETE FROM option_trades WHERE tradeid = ?",
+      [id]
+    );
+
+    if (result.affectedRows === 1) {
+      return res.status(204).send();
+    }
+
+    return res.status(500).json({
+      error: `Unable to delete option trade with tradeid: ${id}`
     });
   } catch (error) {
-    console.error("Error deleting Option trade:", error);
-    res.status(500).json({ message: "Internal server error: " + error });
+    console.error("Error deleting option trade:", error);
+    return res.status(500).json({
+      message: "Internal server error",
+      error: error.message
+    });
   }
 };
 

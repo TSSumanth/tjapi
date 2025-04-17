@@ -134,9 +134,8 @@ exports.deleteEntry = (req, res) => {
   }
 };
 
-exports.updateEntry = (req, res) => {
+exports.updateEntry = async (req, res) => {
   const entrydate = req.query.date;
-
   const {
     date,
     stocks_realised,
@@ -144,106 +143,71 @@ exports.updateEntry = (req, res) => {
     fo_realised,
     fo_unrealised,
   } = req.body;
-  // Build the query string to update the trade
-  let updateFields = [];
-  let updateValues = [];
 
-  if (stocks_realised == undefined) {
-    return res.status(500).json({
+  if (!entrydate) {
+    return res.status(400).json({
       status: "fail",
-      error: `stocks_realised : attribute is mandatory`,
+      error: "date param is required",
     });
   }
 
-  if (stocks_unrealised == undefined) {
-    return res.status(500).json({
-      status: "fail",
-      error: `stocks_unrealised : attribute is mandatory`,
-    });
-  }
+  try {
+    // Check if entry exists
+    const [existingEntry] = await db.pool.query(
+      "SELECT * FROM profit_loss_report WHERE date = ?",
+      [entrydate]
+    );
 
-  if (fo_realised == undefined) {
-    return res.status(500).json({
-      status: "fail",
-      error: `fo_realised : attribute is mandatory`,
-    });
-  }
-
-  if (fo_unrealised == undefined) {
-    return res.status(500).json({
-      status: "fail",
-      error: `fo_unrealised : attribute is mandatory`,
-    });
-  }
-  let erroroccured = false;
-  if (entrydate == undefined) {
-    return res.status(500).json({
-      status: "fail",
-      error: `date param is required`,
-    });
-  }
-
-  db.query(
-    "SELECT * FROM profit_loss_report WHERE date = ?",
-    [entrydate],
-    (err, results) => {
-      if (err) {
-        erroroccured = true
-        return res.status(500).json(err);
-      }
-      if (results.length === 0) {
-        erroroccured = true
-        return res
-          .status(404)
-          .json({ error: "No existing entry for date: " + entrydate });
-      }
-
-      // Always update asset and trade_type
-      updateFields.push(
-        "date",
-        "stocks_realised",
-        "stocks_unrealised",
-        "fo_realised",
-        "fo_unrealised",
-        "stock_pl",
-        "fo_pl",
-        "total_pl"
-      );
-      updateValues.push(
-        date,
-        Number(stocks_realised),
-        Number(stocks_unrealised),
-        Number(fo_realised),
-        Number(fo_unrealised),
-        Number(stocks_realised) + Number(stocks_unrealised),
-        Number(fo_realised) + Number(fo_unrealised),
-        Number(stocks_realised) + Number(stocks_unrealised) + Number(fo_realised) + Number(fo_unrealised)
-      );
-
-      console.log(updateValues)
-      const sqlQuery = `
-            UPDATE profit_loss_report
-            SET ${updateFields.map((field) => `${field} = ?`).join(", ")}
-            WHERE date = ?
-        `;
-      updateValues.push(entrydate);
-      try {
-        db.execute(sqlQuery, updateValues, (err, results) => {
-          if (err) return res.status(500).json(err);
-          if (results.affectedRows == 1) {
-            return res.status(200).json({ message: "Entry updated successfully" });
-          }
-          res
-            .status(500)
-            .json({ error: `Unable to update entry:  + ${entrydate}` });
-        });
-      } catch (error) {
-        console.error("Error updating entry:", error);
-        res.status(500).json({ message: "Internal server error" });
-      }
+    if (existingEntry.length === 0) {
+      return res.status(404).json({
+        error: `No existing entry for date: ${entrydate}`
+      });
     }
-  );
 
+    // Build update fields and values
+    const updateFields = [
+      "date",
+      "stocks_realised",
+      "stocks_unrealised",
+      "fo_realised",
+      "fo_unrealised",
+      "stock_pl",
+      "fo_pl",
+      "total_pl"
+    ];
 
+    const updateValues = [
+      date,
+      Number(stocks_realised),
+      Number(stocks_unrealised),
+      Number(fo_realised),
+      Number(fo_unrealised),
+      Number(stocks_realised) + Number(stocks_unrealised),
+      Number(fo_realised) + Number(fo_unrealised),
+      Number(stocks_realised) + Number(stocks_unrealised) + Number(fo_realised) + Number(fo_unrealised)
+    ];
 
+    const sqlQuery = `
+      UPDATE profit_loss_report
+      SET ${updateFields.map(field => `${field} = ?`).join(", ")}
+      WHERE date = ?
+    `;
+    updateValues.push(entrydate);
+
+    const [result] = await db.pool.query(sqlQuery, updateValues);
+
+    if (result.affectedRows === 1) {
+      return res.status(200).json({ message: "Entry updated successfully" });
+    }
+
+    return res.status(500).json({
+      error: `Unable to update entry: ${entrydate}`
+    });
+  } catch (error) {
+    console.error("Error updating entry:", error);
+    return res.status(500).json({
+      message: "Internal server error",
+      error: error.message
+    });
+  }
 };
