@@ -1,12 +1,15 @@
 const express = require("express");
 const {
   createEntry,
-  get,
+  getAllEntries,
   getEntry,
   deleteEntry,
-  updateEntry
+  updateEntry,
+  getLastEntryDate
 } = require("../controllers/profitLossAnalysisController");
 const router = express.Router();
+
+router.get("/last-entry-date", getLastEntryDate);
 
 router
   .route("/")
@@ -21,7 +24,6 @@ router
       res.status(500).json({ error: "Server error" });
     }
   })
-  .get(getEntry)
   .post(createEntry)
   .delete(deleteEntry)
   .patch(updateEntry);

@@ -1,13 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const { KiteConnect } = require('kiteconnect');
+const db = require('../db');
 require('dotenv').config();
+const moment = require('moment');
 
 // Add debug logging
 console.log('Initializing Zerodha route with API Key:', process.env.ZERODHA_API_KEY);
 
 const kc = new KiteConnect({
-    api_key: process.env.ZERODHA_API_KEY
+    api_key: process.env.ZERODHA_API_KEY,
+    api_secret: process.env.ZERODHA_API_SECRET
 });
 
 // Get positions
@@ -86,10 +89,12 @@ router.get('/holdings', async (req, res) => {
 // Get login URL
 router.get('/login-url', (req, res) => {
     try {
-        if (!process.env.ZERODHA_API_KEY) {
-            throw new Error('Zerodha API credentials are not configured properly');
-        }
-        res.json({ success: true });
+        const loginUrl = kc.getLoginURL();
+        console.log('Generated login URL:', loginUrl);
+        res.json({
+            success: true,
+            loginUrl: loginUrl
+        });
     } catch (error) {
         console.error('Error generating login URL:', error);
         res.status(500).json({
@@ -101,23 +106,11 @@ router.get('/login-url', (req, res) => {
 
 // Handle Zerodha callback
 router.get('/login', async (req, res) => {
-    console.log('Received login callback:', {
-        query: req.query,
-        headers: req.headers,
-        url: req.url,
-        apiKey: process.env.ZERODHA_API_KEY ? 'Present' : 'Missing',
-        apiSecret: process.env.ZERODHA_API_SECRET ? 'Present' : 'Missing'
-    });
-
     try {
-        const requestToken = req.query.request_token;
-        const status = req.query.status;
+        const { request_token } = req.query;
+        console.log('Received request token:', request_token);
 
-        if (!process.env.ZERODHA_API_KEY || !process.env.ZERODHA_API_SECRET) {
-            throw new Error('Zerodha API credentials are not configured properly');
-        }
-
-        if (!requestToken) {
+        if (!request_token) {
             return res.send(`
                 <!DOCTYPE html>
                 <html>
@@ -126,14 +119,10 @@ router.get('/login', async (req, res) => {
                     </head>
                     <body>
                         <script>
-                            try {
-                                window.opener.postMessage({
-                                    type: 'ZERODHA_AUTH_ERROR',
-                                    error: 'No request token provided'
-                                }, '*');
-                            } catch (e) {
-                                console.error('Error sending message:', e);
-                            }
+                            window.opener.postMessage({
+                                type: 'ZERODHA_AUTH_ERROR',
+                                error: 'No request token provided'
+                            }, '*');
                             setTimeout(() => window.close(), 1000);
                         </script>
                         <p>Authentication failed: No request token provided</p>
@@ -142,38 +131,9 @@ router.get('/login', async (req, res) => {
             `);
         }
 
-        if (status !== 'success') {
-            return res.send(`
-                <!DOCTYPE html>
-                <html>
-                    <head>
-                        <title>Zerodha Authentication</title>
-                    </head>
-                    <body>
-                        <script>
-                            try {
-                                window.opener.postMessage({
-                                    type: 'ZERODHA_AUTH_ERROR',
-                                    error: 'Login not successful'
-                                }, '*');
-                            } catch (e) {
-                                console.error('Error sending message:', e);
-                            }
-                            setTimeout(() => window.close(), 1000);
-                        </script>
-                        <p>Authentication failed: Login not successful</p>
-                    </body>
-                </html>
-            `);
-        }
+        const session = await kc.generateSession(request_token, process.env.ZERODHA_API_SECRET);
+        console.log('Session generated:', session);
 
-        console.log('Attempting to generate session with token:', requestToken);
-
-        // Generate session
-        const session = await kc.generateSession(requestToken, process.env.ZERODHA_API_SECRET);
-        console.log('Session generated successfully:', session);
-
-        // Return HTML that sends the tokens to the parent window
         res.send(`
             <!DOCTYPE html>
             <html>
@@ -182,27 +142,21 @@ router.get('/login', async (req, res) => {
                 </head>
                 <body>
                     <script>
-                        try {
-                            window.opener.postMessage({
-                                type: 'ZERODHA_AUTH_SUCCESS',
-                                data: {
-                                    access_token: '${session.access_token}',
-                                    public_token: '${session.public_token}'
-                                }
-                            }, '*');
-                        } catch (e) {
-                            console.error('Error sending message:', e);
-                        }
-                        setTimeout(() => window.close(), 1000);
+                        window.opener.postMessage({
+                            type: 'ZERODHA_AUTH_SUCCESS',
+                            data: {
+                                access_token: '${session.access_token}',
+                                public_token: '${session.public_token}'
+                            }
+                        }, '*');
+                        window.close();
                     </script>
-                    <p>Authentication successful! You can close this window.</p>
+                    <p>Authentication successful! This window will close automatically.</p>
                 </body>
             </html>
         `);
     } catch (error) {
-        console.error('Error in /login route:', error);
-        console.error('Error stack:', error.stack);
-
+        console.error('Error in login callback:', error);
         res.send(`
             <!DOCTYPE html>
             <html>
@@ -211,20 +165,80 @@ router.get('/login', async (req, res) => {
                 </head>
                 <body>
                     <script>
-                        try {
-                            window.opener.postMessage({
-                                type: 'ZERODHA_AUTH_ERROR',
-                                error: '${error.message}'
-                            }, '*');
-                        } catch (e) {
-                            console.error('Error sending message:', e);
-                        }
+                        window.opener.postMessage({
+                            type: 'ZERODHA_AUTH_ERROR',
+                            error: '${error.message}'
+                        }, '*');
                         setTimeout(() => window.close(), 1000);
                     </script>
                     <p>Authentication failed: ${error.message}</p>
                 </body>
             </html>
         `);
+    }
+});
+
+// Get orders
+router.get('/orders', async (req, res) => {
+    try {
+        const accessToken = req.headers.authorization?.split(' ')[1];
+        if (!accessToken) {
+            return res.status(401).json({
+                success: false,
+                error: 'No access token provided'
+            });
+        }
+
+        kc.setAccessToken(accessToken);
+
+        // Get today's date in YYYY-MM-DD format
+        const today = moment();
+        const fromDate = today.format('YYYY-MM-DD');
+        const toDate = today.format('YYYY-MM-DD');
+
+        // Fetch orders for today
+        const orders = await kc.getOrders({
+            from_date: fromDate,
+            to_date: toDate
+        });
+
+        // Filter out cancelled orders and process partially completed orders
+        const processedOrders = orders.map(order => {
+            if (order.status === 'CANCELLED') {
+                return null;
+            }
+
+            // For partially completed orders, create a new order with filled quantity
+            if (order.status === 'PARTIALLY COMPLETED') {
+                return {
+                    ...order,
+                    quantity: order.filled_quantity,
+                    price: order.average_price
+                };
+            }
+
+            // For completed orders
+            if (order.status === 'COMPLETE') {
+                return {
+                    ...order,
+                    quantity: order.filled_quantity,
+                    price: order.average_price
+                };
+            }
+
+            return order;
+        }).filter(order => order !== null);
+
+        res.json({
+            success: true,
+            data: processedOrders
+        });
+    } catch (error) {
+        console.error('Error fetching orders:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
     }
 });
 

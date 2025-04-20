@@ -211,3 +211,22 @@ exports.updateEntry = async (req, res) => {
     });
   }
 };
+
+exports.getLastEntryDate = async (req, res) => {
+  try {
+    const [result] = await db.pool.query(
+      "SELECT MAX(date) as last_date FROM profit_loss_report"
+    );
+
+    if (!result[0].last_date) {
+      // If no entries exist, return a date 7 days ago as default
+      const defaultDate = moment().subtract(7, 'days').format('YYYY-MM-DD');
+      return res.json({ last_date: defaultDate });
+    }
+
+    res.json({ last_date: moment(result[0].last_date).format('YYYY-MM-DD') });
+  } catch (error) {
+    console.error("Error fetching last entry date:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
