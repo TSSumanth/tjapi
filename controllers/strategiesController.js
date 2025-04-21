@@ -70,7 +70,10 @@ exports.getStrategies = async (req, res) => {
     let { name, id, status, createdafter, createdbefore } = req.query;
 
     if (id !== undefined) {
+      console.log('Fetching strategy with ID:', id);
       const [results] = await db.pool.query("SELECT * FROM strategies WHERE id = ?", [id]);
+      console.log('Raw database results:', results);
+
       if (results.length === 0) {
         return res.status(404).json({ message: "Strategy not found: " + id });
       }
@@ -109,7 +112,37 @@ exports.getStrategies = async (req, res) => {
       }
 
       const [results] = await db.pool.query(query, params);
-      return res.status(200).json(results);
+
+      // Parse JSON strings for trades arrays in all results with error handling
+      const parsedResults = results.map(strategy => {
+        const parsedStrategy = {
+          ...strategy,
+          stock_trades: [],
+          option_trades: []
+        };
+
+        try {
+          if (strategy.stock_trades) {
+            const parsed = JSON.parse(strategy.stock_trades);
+            parsedStrategy.stock_trades = Array.isArray(parsed) ? parsed : [];
+          }
+        } catch (error) {
+          console.error(`Error parsing stock trades for strategy ${strategy.id}:`, error);
+        }
+
+        try {
+          if (strategy.option_trades) {
+            const parsed = JSON.parse(strategy.option_trades);
+            parsedStrategy.option_trades = Array.isArray(parsed) ? parsed : [];
+          }
+        } catch (error) {
+          console.error(`Error parsing option trades for strategy ${strategy.id}:`, error);
+        }
+
+        return parsedStrategy;
+      });
+
+      return res.status(200).json(parsedResults);
     }
   } catch (error) {
     console.error("Error fetching strategies:", error);

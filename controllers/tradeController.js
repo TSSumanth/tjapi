@@ -121,6 +121,40 @@ exports.createStockTrade = async (req, res) => {
     const [result] = await db.pool.query(sql, params);
 
     if (result.affectedRows === 1) {
+      // Update the strategy's stock_trades array
+      if (strategy_id) {
+        try {
+          // Get the current strategy
+          const [strategy] = await db.pool.query(
+            "SELECT stock_trades FROM strategies WHERE id = ?",
+            [strategy_id]
+          );
+
+          if (strategy && strategy[0]) {
+            // Parse the current stock_trades array
+            let stockTrades = [];
+            try {
+              stockTrades = JSON.parse(strategy[0].stock_trades || '[]');
+            } catch (e) {
+              console.error('Error parsing stock_trades:', e);
+            }
+
+            // Add the new trade ID if it's not already in the array
+            if (!stockTrades.includes(tradeid)) {
+              stockTrades.push(tradeid);
+
+              // Update the strategy
+              await db.pool.query(
+                "UPDATE strategies SET stock_trades = ? WHERE id = ?",
+                [JSON.stringify(stockTrades), strategy_id]
+              );
+            }
+          }
+        } catch (error) {
+          console.error('Error updating strategy stock_trades:', error);
+        }
+      }
+
       return res.status(201).json({
         message: "New trade added successfully!",
         tradeid: tradeid
@@ -146,8 +180,10 @@ exports.getStockTrades = async (req, res) => {
     let params = [];
 
     if (id !== undefined) {
-      query += " AND id = ?";
-      params.push(id);
+      // Handle both single ID and array of IDs
+      const ids = Array.isArray(id) ? id : [id];
+      query += " AND tradeid IN (?)";
+      params.push(ids);
     }
     if (strategy_id !== undefined) {
       query += " AND strategy_id = ?";
@@ -186,7 +222,6 @@ exports.getStockTrades = async (req, res) => {
     });
 
     const queryPromise = db.pool.query(query, params);
-
     const [results] = await Promise.race([queryPromise, timeoutPromise]);
 
     if (!results || results.length === 0) {
@@ -543,7 +578,40 @@ exports.createOptionTrade = async (req, res) => {
     console.log('Query result:', result);
 
     if (result.affectedRows === 1) {
-      console.log('Trade created successfully');
+      // Update the strategy's option_trades array
+      if (strategy_id) {
+        try {
+          // Get the current strategy
+          const [strategy] = await db.pool.query(
+            "SELECT option_trades FROM strategies WHERE id = ?",
+            [strategy_id]
+          );
+
+          if (strategy && strategy[0]) {
+            // Parse the current option_trades array
+            let optionTrades = [];
+            try {
+              optionTrades = JSON.parse(strategy[0].option_trades || '[]');
+            } catch (e) {
+              console.error('Error parsing option_trades:', e);
+            }
+
+            // Add the new trade ID if it's not already in the array
+            if (!optionTrades.includes(tradeid)) {
+              optionTrades.push(tradeid);
+
+              // Update the strategy
+              await db.pool.query(
+                "UPDATE strategies SET option_trades = ? WHERE id = ?",
+                [JSON.stringify(optionTrades), strategy_id]
+              );
+            }
+          }
+        } catch (error) {
+          console.error('Error updating strategy option_trades:', error);
+        }
+      }
+
       return res.status(201).json({
         message: "New trade added successfully!",
         tradeid: tradeid
