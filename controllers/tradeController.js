@@ -564,124 +564,24 @@ exports.createOptionTrade = async (req, res) => {
 
 exports.getOptionTrades = async (req, res) => {
   try {
-    console.log('getOptionTrades called with query params:', req.query);
-    let { id, asset, tradetype, status, entryStartdate, entryEndDate, tags, minimumreturn, maximumreturn, minimumcapitalused, maximumcapitalused } = req.query;
+    const { id } = req.query;
+    let query = "SELECT * FROM option_trades";
     let params = [];
-    let query = "SELECT * FROM option_trades WHERE 1=1";
 
-    if (id !== undefined) {
-      console.log('Fetching by ID:', id);
-      query = `SELECT * FROM option_trades WHERE tradeid = ?`;
-      params.push(id);
-    } else {
-      console.log('Building query with filters');
-      if (asset) {
-        if (Array.isArray(asset)) {
-          query += ` AND asset REGEXP ?`;
-          params.push(asset.join("|"));
-        } else {
-          query += ` AND asset REGEXP ?`;
-          params.push(asset);
-        }
-        console.log('Added asset filter:', asset);
-      }
-      if (minimumcapitalused) {
-        const parsedPrice = parseFloat(minimumcapitalused);
-        if (isNaN(parsedPrice)) {
-          return res.status(400).send('Invalid minimumcapitalused value, Expected number: ' + minimumcapitalused);
-        }
-        query += " AND capitalused >= ?";
-        params.push(parsedPrice);
-        console.log('Added minimumcapitalused filter:', parsedPrice);
-      }
-      if (maximumcapitalused) {
-        const parsedPrice = parseFloat(maximumcapitalused);
-        if (isNaN(parsedPrice)) {
-          return res.status(400).send('Invalid maximumcapitalused value, Expected number: ' + maximumcapitalused);
-        }
-        query += " AND capitalused <= ?";
-        params.push(parsedPrice);
-        console.log('Added maximumcapitalused filter:', parsedPrice);
-      }
-      if (minimumreturn) {
-        const parsedPrice = parseFloat(minimumreturn);
-        if (isNaN(parsedPrice)) {
-          return res.status(400).send('Invalid minimumreturn value, Expected number: ' + minimumreturn);
-        }
-        query += " AND overallreturn >= ?";
-        params.push(parsedPrice);
-        console.log('Added minimumreturn filter:', parsedPrice);
-      }
-      if (maximumreturn) {
-        const parsedPrice = parseFloat(maximumreturn);
-        if (isNaN(parsedPrice)) {
-          return res.status(400).send('Invalid maximumreturn value, Expected number: ' + maximumreturn);
-        }
-        query += " AND overallreturn <= ?";
-        params.push(parsedPrice);
-        console.log('Added maximumreturn filter:', parsedPrice);
-      }
-      if (tradetype) {
-        query += " AND tradetype = ?";
-        params.push(tradetype.toUpperCase());
-        console.log('Added tradetype filter:', tradetype.toUpperCase());
-      }
-      if (entryStartdate) {
-        query += " AND entrydate >= ?";
-        params.push(entryStartdate);
-        console.log('Added entryStartdate filter:', entryStartdate);
-      }
-      if (entryEndDate) {
-        query += " AND entrydate <= ?";
-        params.push(entryEndDate);
-        console.log('Added entryEndDate filter:', entryEndDate);
-      }
-      if (status) {
-        query += " AND status = ?";
-        params.push(status.toUpperCase());
-        console.log('Added status filter:', status.toUpperCase());
-      }
-      if (tags) {
-        if (Array.isArray(tags)) {
-          query += ` AND tags REGEXP ?`;
-          params.push(tags.join("|"));
-        } else {
-          query += " AND tags REGEXP  ?";
-          params.push(tags);
-        }
-        console.log('Added tags filter:', tags);
-      }
-    }
-    query += " ORDER BY entrydate DESC, STATUS";
-    console.log('Final query:', query);
-    console.log('Query parameters:', params);
-
-    // Execute query using promise
-    const [results] = await db.pool.query(query, params);
-    console.log('Raw query results:', results);
-
-    if (!results || results.length === 0) {
-      console.log('No results found');
-      return res.status(200).json([]);
+    if (id) {
+      // Handle both single ID and array of IDs
+      const ids = Array.isArray(id) ? id : [id];
+      query += " WHERE tradeid IN (?)";
+      params.push(ids);
     }
 
-    const formattedresults = results.map((result) => ({
-      ...result,
-      entrydate: moment(result.entrydate).format("YYYY-MM-DD"),
-      exitdate: result.exitdate ? moment(result.exitdate).format("YYYY-MM-DD") : null,
-      lastmodifieddate: result.lastmodifieddate ? moment(result.lastmodifieddate).format("YYYY-MM-DD") : null
-    }));
+    query += " ORDER BY entrydate DESC, status";
 
-    console.log('Formatted results:', formattedresults);
-    return res.status(200).json(formattedresults);
+    const [rows] = await db.pool.query(query, params);
+    res.json(rows);
   } catch (error) {
-    console.error('Error in getOptionTrades:', error);
-    console.error('Error stack:', error.stack);
-    return res.status(500).json({
-      error: 'Internal server error',
-      message: error.message,
-      stack: error.stack
-    });
+    console.error("Error in getOptionTrades:", error);
+    res.status(500).json({ error: "Failed to fetch option trades" });
   }
 };
 
