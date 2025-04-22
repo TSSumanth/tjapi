@@ -20,9 +20,9 @@ exports.createStrategy = async (req, res) => {
     });
   }
 
-  if (!(status.toUpperCase() === "OPEN" || status.toUpperCase() === "CLOSED")) {
+  if (!(status.toUpperCase() === "OPEN" || status.toUpperCase() === "CLOSE")) {
     return res.status(400).json({
-      error: `Incorrect value ${status.toUpperCase()} in status: Status can only be OPEN or CLOSED`
+      error: `Incorrect value ${status.toUpperCase()} in status: Status can only be OPEN or CLOSE`
     });
   }
 
@@ -90,60 +90,30 @@ exports.getStrategies = async (req, res) => {
       }));
 
       return res.status(200).json({ ...results[0], notes: formattedNotes });
-    } else {
-      let params = [];
-      let query = "SELECT * FROM strategies WHERE 1=1";
-
-      if (name) {
-        query += ` AND name REGEXP ?`;
-        params.push(name);
-      }
-      if (status) {
-        query += " AND status = ?";
-        params.push(status.toUpperCase());
-      }
-      if (createdafter) {
-        query += " AND created_at >= ?";
-        params.push(createdafter);
-      }
-      if (createdbefore) {
-        query += " AND created_at <= ?";
-        params.push(createdbefore);
-      }
-
-      const [results] = await db.pool.query(query, params);
-
-      // Parse JSON strings for trades arrays in all results with error handling
-      const parsedResults = results.map(strategy => {
-        const parsedStrategy = {
-          ...strategy,
-          stock_trades: [],
-          option_trades: []
-        };
-
-        try {
-          if (strategy.stock_trades) {
-            const parsed = JSON.parse(strategy.stock_trades);
-            parsedStrategy.stock_trades = Array.isArray(parsed) ? parsed : [];
-          }
-        } catch (error) {
-          console.error(`Error parsing stock trades for strategy ${strategy.id}:`, error);
-        }
-
-        try {
-          if (strategy.option_trades) {
-            const parsed = JSON.parse(strategy.option_trades);
-            parsedStrategy.option_trades = Array.isArray(parsed) ? parsed : [];
-          }
-        } catch (error) {
-          console.error(`Error parsing option trades for strategy ${strategy.id}:`, error);
-        }
-
-        return parsedStrategy;
-      });
-
-      return res.status(200).json(parsedResults);
     }
+
+    let params = [];
+    let query = "SELECT * FROM strategies WHERE 1=1";
+
+    if (name) {
+      query += ` AND name REGEXP ?`;
+      params.push(name);
+    }
+    if (status) {
+      query += " AND status = ?";
+      params.push(status.toUpperCase());
+    }
+    if (createdafter) {
+      query += " AND created_at >= ?";
+      params.push(createdafter);
+    }
+    if (createdbefore) {
+      query += " AND created_at <= ?";
+      params.push(createdbefore);
+    }
+
+    const [results] = await db.pool.query(query, params);
+    return res.status(200).json(results);
   } catch (error) {
     console.error("Error fetching strategies:", error);
     return res.status(500).json({ message: "Internal server error" });
@@ -155,7 +125,7 @@ exports.updateStrategy = async (req, res) => {
   let { name, description, stock_trades, option_trades, status, symbol } = req.body;
 
   try {
-    if (status && !(status.toUpperCase() === "OPEN" || status.toUpperCase() === "CLOSED")) {
+    if (status && !(status.toUpperCase() === "OPEN" || status.toUpperCase() === "CLOSE")) {
       return res.status(400).json({
         error: `Incorrect value ${status.toUpperCase()} in status: Status can only be OPEN or CLOSED`
       });
