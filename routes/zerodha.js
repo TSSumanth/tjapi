@@ -4,6 +4,7 @@ const { KiteConnect } = require('kiteconnect');
 const db = require('../db');
 require('dotenv').config();
 const moment = require('moment');
+const axios = require('axios');
 
 // Add debug logging
 console.log('Initializing Zerodha route with API Key:', process.env.ZERODHA_API_KEY);
@@ -296,6 +297,95 @@ router.get('/instruments', async (req, res) => {
     } catch (error) {
         console.error('Error fetching instruments:', error);
         console.error('Error stack:', error.stack);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// Get account information
+router.get('/account', async (req, res) => {
+    try {
+        const accessToken = req.headers.authorization?.split(' ')[1];
+        if (!accessToken) {
+            return res.status(401).json({
+                success: false,
+                error: 'No access token provided'
+            });
+        }
+
+        kc.setAccessToken(accessToken);
+        const profile = await kc.getProfile();
+        const margins = await kc.getMargins('equity');
+
+        // Initialize response with basic data
+        const response = {
+            success: true,
+            data: {
+                clientId: profile.user_id,
+                name: profile.user_name,
+                email: profile.email,
+                margins: {
+                    equity: {
+                        available: parseFloat(margins.available?.cash || 0),
+                        utilised: parseFloat(margins.utilised?.debits || 0),
+                        net: parseFloat(margins.net || 0),
+                        exposure: parseFloat(margins.utilised?.exposure || 0),
+                        optionPremium: parseFloat(margins.utilised?.option_premium || 0)
+                    }
+                },
+                mutualFunds: [] // Initialize empty array
+            }
+        };
+
+        try {
+            // Try to get mutual fund holdings if available
+            console.log('Fetching mutual fund holdings...');
+
+            // Make a raw HTTP request to the mutual fund holdings endpoint
+            const mfResponse = await axios.get('https://api.kite.trade/mf/holdings', {
+                headers: {
+                    'X-Kite-Version': '3',
+                    'Authorization': `token ${kc.api_key}:${kc.access_token}`
+                }
+            });
+
+            console.log('Raw MF holdings response:', JSON.stringify(mfResponse.data, null, 2));
+
+            // Check if we have valid holdings data
+            if (mfResponse.data && mfResponse.data.data && Array.isArray(mfResponse.data.data)) {
+                response.data.mutualFunds = mfResponse.data.data.map(holding => {
+                    const currentNav = parseFloat(holding.last_price || holding.current_nav || 0);
+                    const avgCost = parseFloat(holding.average_price || holding.purchase_price || 0);
+                    const units = parseFloat(holding.quantity || holding.units || 0);
+                    const pnl = (currentNav - avgCost) * units;
+                    const pnlPercentage = avgCost > 0 ? ((currentNav - avgCost) / avgCost) * 100 : 0;
+
+                    return {
+                        scheme_name: holding.fund || 'Unknown Scheme',
+                        units: units,
+                        average_cost: avgCost,
+                        current_nav: currentNav,
+                        pnl: pnl,
+                        pnl_percentage: pnlPercentage
+                    };
+                });
+                console.log('Formatted MF holdings:', JSON.stringify(response.data.mutualFunds, null, 2));
+            } else {
+                console.log('No mutual fund holdings found or invalid response format');
+                console.log('Response structure:', JSON.stringify(mfResponse.data, null, 2));
+            }
+        } catch (mfError) {
+            console.error('Error fetching mutual fund holdings:', mfError.message);
+            console.error('Error stack:', mfError.stack);
+            console.error('Error details:', JSON.stringify(mfError.response?.data || mfError, null, 2));
+            // Continue with empty mutual funds array
+        }
+
+        res.json(response);
+    } catch (error) {
+        console.error('Error fetching account information:', error);
         res.status(500).json({
             success: false,
             error: error.message
