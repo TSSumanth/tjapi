@@ -31,95 +31,11 @@ router.get('/positions', async (req, res) => {
         const positions = await kc.getPositions();
         console.log('Positions received:', positions);
 
-        // Check if positions is an object with net, day properties
-        if (positions && typeof positions === 'object') {
-            // Create a map to deduplicate positions
-            const positionMap = new Map();
-
-            // Process net positions first (they take precedence)
-            if (positions.net) {
-                positions.net.forEach(position => {
-                    // Only keep positions that have a non-zero quantity
-                    if (position.quantity !== 0) {
-                        // For overnight positions, check if they've been squared off
-                        if (position.overnight_quantity !== 0) {
-                            const isSquaredOff =
-                                (position.overnight_quantity > 0 && position.day_sell_quantity === position.overnight_quantity) ||
-                                (position.overnight_quantity < 0 && position.day_buy_quantity === Math.abs(position.overnight_quantity));
-
-                            if (!isSquaredOff) {
-                                positionMap.set(position.tradingsymbol, position);
-                            }
-                        }
-                        // For day positions, only show if they're new positions
-                        else {
-                            const hasOnlyBuys = position.day_buy_quantity > 0 && position.day_sell_quantity === 0;
-                            const hasOnlySells = position.day_sell_quantity > 0 && position.day_buy_quantity === 0;
-
-                            if (hasOnlyBuys || hasOnlySells) {
-                                positionMap.set(position.tradingsymbol, position);
-                            }
-                        }
-                    }
-                });
-            }
-
-            // Only add day positions if they don't exist in net
-            if (positions.day) {
-                positions.day.forEach(position => {
-                    if (!positionMap.has(position.tradingsymbol) && position.quantity !== 0) {
-                        // For overnight positions, check if they've been squared off
-                        if (position.overnight_quantity !== 0) {
-                            const isSquaredOff =
-                                (position.overnight_quantity > 0 && position.day_sell_quantity === position.overnight_quantity) ||
-                                (position.overnight_quantity < 0 && position.day_buy_quantity === Math.abs(position.overnight_quantity));
-
-                            if (!isSquaredOff) {
-                                positionMap.set(position.tradingsymbol, position);
-                            }
-                        }
-                        // For day positions, only show if they're new positions
-                        else {
-                            const hasOnlyBuys = position.day_buy_quantity > 0 && position.day_sell_quantity === 0;
-                            const hasOnlySells = position.day_sell_quantity > 0 && position.day_buy_quantity === 0;
-
-                            if (hasOnlyBuys || hasOnlySells) {
-                                positionMap.set(position.tradingsymbol, position);
-                            }
-                        }
-                    }
-                });
-            }
-
-            const allPositions = Array.from(positionMap.values());
-            console.log('Processed positions:', {
-                totalReceived: positions.net?.length + (positions.day?.length || 0),
-                afterFiltering: allPositions.length,
-                positions: allPositions.map(p => ({
-                    symbol: p.tradingsymbol,
-                    quantity: p.quantity,
-                    overnight: p.overnight_quantity,
-                    dayBuy: p.day_buy_quantity,
-                    daySell: p.day_sell_quantity,
-                    isSquaredOff: p.overnight_quantity !== 0 ?
-                        (p.overnight_quantity > 0 && p.day_sell_quantity === p.overnight_quantity) ||
-                        (p.overnight_quantity < 0 && p.day_buy_quantity === Math.abs(p.overnight_quantity))
-                        :
-                        !(p.day_buy_quantity > 0 && p.day_sell_quantity === 0) &&
-                        !(p.day_sell_quantity > 0 && p.day_buy_quantity === 0)
-                }))
-            });
-
-            res.json({
-                success: true,
-                data: allPositions
-            });
-        } else {
-            res.json({
-                success: true,
-                data: positions || []
-            });
-        }
+        // Just pass through the raw positions data
+        res.json({
+            success: true,
+            data: positions || { net: [], day: [] }
+        });
     } catch (error) {
         console.error('Error fetching positions:', error);
         console.error('Error stack:', error.stack);
