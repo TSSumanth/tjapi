@@ -390,12 +390,13 @@ router.get('/account', async (req, res) => {
                         const pnlPercentage = avgCost > 0 ? ((currentNav - avgCost) / avgCost) * 100 : 0;
 
                         return {
-                            scheme_name: holding.tradingsymbol || holding.fund || 'Unknown Scheme',
+                            scheme_name: holding.fund || 'Unknown Scheme',
                             units: units,
                             average_cost: avgCost,
                             current_nav: currentNav,
                             pnl: pnl,
-                            pnl_percentage: pnlPercentage
+                            pnl_percentage: pnlPercentage,
+                            folio: holding.folio || ''
                         };
                     });
                     console.log('Formatted MF holdings:', JSON.stringify(response.data.mutualFunds, null, 2));
