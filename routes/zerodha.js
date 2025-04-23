@@ -8,6 +8,10 @@ const axios = require('axios');
 
 // Add debug logging
 console.log('Initializing Zerodha route with API Key:', process.env.ZERODHA_API_KEY);
+console.log('Environment variables:', {
+    ZERODHA_API_KEY: process.env.ZERODHA_API_KEY ? 'Present' : 'Missing',
+    ZERODHA_API_SECRET: process.env.ZERODHA_API_SECRET ? 'Present' : 'Missing'
+});
 
 const kc = new KiteConnect({
     api_key: process.env.ZERODHA_API_KEY,
@@ -307,88 +311,130 @@ router.get('/instruments', async (req, res) => {
 // Get account information
 router.get('/account', async (req, res) => {
     try {
+        console.log('Account endpoint called');
         const accessToken = req.headers.authorization?.split(' ')[1];
-        if (!accessToken) {
+        const publicToken = req.headers['x-zerodha-public-token'];
+
+        console.log('Access token present:', !!accessToken);
+        console.log('Public token present:', !!publicToken);
+        console.log('Current API Key:', process.env.ZERODHA_API_KEY);
+
+        if (!accessToken || !publicToken) {
+            console.log('Missing tokens:', {
+                accessToken: !!accessToken,
+                publicToken: !!publicToken
+            });
             return res.status(401).json({
                 success: false,
-                error: 'No access token provided'
+                error: 'Authentication tokens missing'
             });
         }
 
+        // Use the same KiteConnect instance
+        console.log('Setting access token and making API calls...');
+        console.log('Access token being set:', accessToken);
         kc.setAccessToken(accessToken);
-        const profile = await kc.getProfile();
-        const margins = await kc.getMargins('equity');
-
-        // Initialize response with basic data
-        const response = {
-            success: true,
-            data: {
-                clientId: profile.user_id,
-                name: profile.user_name,
-                email: profile.email,
-                margins: {
-                    equity: {
-                        available: parseFloat(margins.available?.cash || 0),
-                        utilised: parseFloat(margins.utilised?.debits || 0),
-                        net: parseFloat(margins.net || 0),
-                        exposure: parseFloat(margins.utilised?.exposure || 0),
-                        optionPremium: parseFloat(margins.utilised?.option_premium || 0)
-                    }
-                },
-                mutualFunds: [] // Initialize empty array
-            }
-        };
 
         try {
-            // Try to get mutual fund holdings if available
-            console.log('Fetching mutual fund holdings...');
+            console.log('Fetching profile...');
+            const profile = await kc.getProfile();
+            console.log('Profile fetched successfully');
 
-            // Make a raw HTTP request to the mutual fund holdings endpoint
-            const mfResponse = await axios.get('https://api.kite.trade/mf/holdings', {
-                headers: {
-                    'X-Kite-Version': '3',
-                    'Authorization': `token ${kc.api_key}:${kc.access_token}`
+            console.log('Fetching margins...');
+            const margins = await kc.getMargins('equity');
+            console.log('Margins fetched successfully:', JSON.stringify(margins, null, 2));
+
+            // Format margins data
+            const formattedMargins = {
+                available: parseFloat(margins.available.cash || 0),
+                utilised: parseFloat(margins.utilised.debits || 0),
+                net: parseFloat(margins.net || 0),
+                exposure: parseFloat(margins.utilised.exposure || 0),
+                optionPremium: parseFloat(margins.utilised.option_premium || 0)
+            };
+
+            // Initialize response with basic data
+            const response = {
+                success: true,
+                data: {
+                    clientId: profile.user_id,
+                    name: profile.user_name,
+                    email: profile.email,
+                    margins: {
+                        equity: formattedMargins
+                    },
+                    mutualFunds: [] // Initialize empty array for mutual funds
                 }
+            };
+
+            // Try to fetch mutual fund holdings
+            try {
+                console.log('Fetching mutual fund holdings...');
+
+                // Make a direct HTTP request to Zerodha's MF holdings endpoint
+                const mfResponse = await axios.get('https://api.kite.trade/mf/holdings', {
+                    headers: {
+                        'X-Kite-Version': '3',
+                        'Authorization': `token ${process.env.ZERODHA_API_KEY}:${accessToken}`
+                    }
+                });
+
+                console.log('MF holdings raw response:', JSON.stringify(mfResponse.data, null, 2));
+
+                if (mfResponse.data && mfResponse.data.data && Array.isArray(mfResponse.data.data)) {
+                    response.data.mutualFunds = mfResponse.data.data.map(holding => {
+                        const currentNav = parseFloat(holding.last_price || holding.current_nav || 0);
+                        const avgCost = parseFloat(holding.average_price || holding.purchase_price || 0);
+                        const units = parseFloat(holding.quantity || holding.units || 0);
+                        const pnl = (currentNav - avgCost) * units;
+                        const pnlPercentage = avgCost > 0 ? ((currentNav - avgCost) / avgCost) * 100 : 0;
+
+                        return {
+                            scheme_name: holding.tradingsymbol || holding.fund || 'Unknown Scheme',
+                            units: units,
+                            average_cost: avgCost,
+                            current_nav: currentNav,
+                            pnl: pnl,
+                            pnl_percentage: pnlPercentage
+                        };
+                    });
+                    console.log('Formatted MF holdings:', JSON.stringify(response.data.mutualFunds, null, 2));
+                } else {
+                    console.log('No mutual fund holdings found or invalid response format');
+                }
+            } catch (mfError) {
+                console.error('Error fetching mutual fund holdings:', mfError.message);
+                console.error('Error details:', mfError.response?.data || mfError);
+                // Continue with empty mutual funds array
+            }
+
+            console.log('Sending response:', JSON.stringify(response, null, 2));
+            res.json(response);
+        } catch (apiError) {
+            console.error('Zerodha API Error:', apiError);
+            console.error('Error details:', {
+                message: apiError.message,
+                status: apiError.status_code,
+                response: apiError.response?.data,
+                apiKey: process.env.ZERODHA_API_KEY,
+                accessToken: accessToken
             });
 
-            console.log('Raw MF holdings response:', JSON.stringify(mfResponse.data, null, 2));
-
-            // Check if we have valid holdings data
-            if (mfResponse.data && mfResponse.data.data && Array.isArray(mfResponse.data.data)) {
-                response.data.mutualFunds = mfResponse.data.data.map(holding => {
-                    const currentNav = parseFloat(holding.last_price || holding.current_nav || 0);
-                    const avgCost = parseFloat(holding.average_price || holding.purchase_price || 0);
-                    const units = parseFloat(holding.quantity || holding.units || 0);
-                    const pnl = (currentNav - avgCost) * units;
-                    const pnlPercentage = avgCost > 0 ? ((currentNav - avgCost) / avgCost) * 100 : 0;
-
-                    return {
-                        scheme_name: holding.fund || 'Unknown Scheme',
-                        units: units,
-                        average_cost: avgCost,
-                        current_nav: currentNav,
-                        pnl: pnl,
-                        pnl_percentage: pnlPercentage
-                    };
+            // If we get a 403 or 401 from Zerodha, it means the token is invalid
+            if (apiError.status_code === 403 || apiError.status_code === 401) {
+                return res.status(401).json({
+                    success: false,
+                    error: 'Session expired. Please login again.'
                 });
-                console.log('Formatted MF holdings:', JSON.stringify(response.data.mutualFunds, null, 2));
-            } else {
-                console.log('No mutual fund holdings found or invalid response format');
-                console.log('Response structure:', JSON.stringify(mfResponse.data, null, 2));
             }
-        } catch (mfError) {
-            console.error('Error fetching mutual fund holdings:', mfError.message);
-            console.error('Error stack:', mfError.stack);
-            console.error('Error details:', JSON.stringify(mfError.response?.data || mfError, null, 2));
-            // Continue with empty mutual funds array
+            throw apiError;
         }
-
-        res.json(response);
     } catch (error) {
-        console.error('Error fetching account information:', error);
+        console.error('Error in account endpoint:', error);
+        console.error('Error stack:', error.stack);
         res.status(500).json({
             success: false,
-            error: error.message
+            error: error.message || 'Failed to fetch account information'
         });
     }
 });
