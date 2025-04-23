@@ -440,4 +440,54 @@ router.get('/account', async (req, res) => {
     }
 });
 
+// Place an order
+router.post('/order', async (req, res) => {
+    try {
+        const accessToken = req.headers.authorization?.split(' ')[1];
+        if (!accessToken) {
+            return res.status(401).json({
+                success: false,
+                error: 'No access token provided'
+            });
+        }
+
+        const {
+            tradingsymbol,
+            exchange,
+            transaction_type,
+            quantity,
+            product,
+            order_type,
+            price,
+            trigger_price
+        } = req.body;
+
+        console.log('Placing order with params:', req.body);
+
+        kc.setAccessToken(accessToken);
+        const order = await kc.placeOrder('regular', {
+            tradingsymbol,
+            exchange,
+            transaction_type,
+            quantity,
+            product,
+            order_type,
+            price,
+            trigger_price
+        });
+
+        console.log('Order placed successfully:', order);
+        res.json({
+            success: true,
+            order_id: order.order_id
+        });
+    } catch (error) {
+        console.error('Error placing order:', error);
+        res.status(400).json({
+            success: false,
+            error: error.message || 'Failed to place order'
+        });
+    }
+});
+
 module.exports = router;
