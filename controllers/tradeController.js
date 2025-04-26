@@ -632,21 +632,62 @@ exports.createOptionTrade = async (req, res) => {
 
 exports.getOptionTrades = async (req, res) => {
   try {
-    const { id } = req.query;
-    let query = "SELECT * FROM option_trades";
+    console.log('Fetching option trades with params:', req.query);
+    let { id, strategy_id, entrydate, exitdate, createdafter, createdbefore, status } = req.query;
+    let query = "SELECT * FROM option_trades WHERE 1=1";
     let params = [];
 
     if (id) {
       // Handle both single ID and array of IDs
       const ids = Array.isArray(id) ? id : [id];
-      query += " WHERE tradeid IN (?)";
+      query += " AND tradeid IN (?)";
       params.push(ids);
+    }
+    if (strategy_id !== undefined) {
+      query += " AND strategy_id = ?";
+      params.push(strategy_id);
+    }
+    if (entrydate !== undefined) {
+      query += " AND entrydate = ?";
+      params.push(entrydate);
+    }
+    if (exitdate !== undefined) {
+      query += " AND exitdate = ?";
+      params.push(exitdate);
+    }
+    if (createdafter !== undefined) {
+      query += " AND created_at >= ?";
+      params.push(createdafter);
+    }
+    if (createdbefore !== undefined) {
+      query += " AND created_at <= ?";
+      params.push(createdbefore);
+    }
+    if (status !== undefined) {
+      query += " AND status = ?";
+      params.push(status.toUpperCase());
     }
 
     query += " ORDER BY entrydate DESC, status";
+    console.log('Executing query:', query);
+    console.log('With params:', params);
 
     const [rows] = await db.pool.query(query, params);
-    res.json(rows);
+
+    if (!rows || rows.length === 0) {
+      console.log('No results found');
+      return res.status(200).json([]);
+    }
+
+    console.log(`Found ${rows.length} trades`);
+    const formattedResults = rows.map(trade => ({
+      ...trade,
+      entrydate: moment(trade.entrydate).format("YYYY-MM-DD"),
+      exitdate: trade.exitdate ? moment(trade.exitdate).format("YYYY-MM-DD") : null,
+      lastmodifieddate: trade.lastmodifieddate ? moment(trade.lastmodifieddate).format("YYYY-MM-DD") : null
+    }));
+
+    return res.status(200).json(formattedResults);
   } catch (error) {
     console.error("Error in getOptionTrades:", error);
     res.status(500).json({ error: "Failed to fetch option trades" });
