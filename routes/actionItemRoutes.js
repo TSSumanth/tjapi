@@ -1,14 +1,14 @@
 const express = require("express");
 const {
   createActionItem,
-  getActiveActionItems,
+  getActionItems,
   updateActionItem,
   deleteItem
 } = require("../controllers/actionItemController");
 const router = express.Router();
 
 router.route("/").post(createActionItem);
-router.route("/activeactionitems").get(getActiveActionItems)
+router.route("/").get(getActionItems)
 router
   .route("/:id")
   .patch(updateActionItem)
