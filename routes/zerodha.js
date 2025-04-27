@@ -260,19 +260,68 @@ router.get('/instruments', async (req, res) => {
             });
         }
 
-        // Get pagination parameters from query
+        // Get pagination and search parameters from query
         const page = parseInt(req.query.page) || 1;
         const pageSize = parseInt(req.query.pageSize) || 100;
+        const search = req.query.search?.toUpperCase();
+        const strikePrice = parseFloat(req.query.strike);
+        const expiry = req.query.expiry;
+        const instrumentType = req.query.type?.toUpperCase();
         const startIndex = (page - 1) * pageSize;
         const endIndex = startIndex + pageSize;
 
+        console.log('Search parameters:', {
+            search,
+            strikePrice,
+            expiry,
+            instrumentType,
+            page,
+            pageSize
+        });
+
         // Filter and sort instruments
         const sortedInstruments = instruments
-            .filter(instrument =>
-                instrument.instrument_type === 'FUT' ||
-                instrument.instrument_type === 'CE' ||
-                instrument.instrument_type === 'PE'
-            )
+            .filter(instrument => {
+                if (!instrument) {
+                    console.warn('Found null instrument in the list');
+                    return false;
+                }
+
+                // First filter by instrument type
+                const typeMatch = instrumentType
+                    ? instrument.instrument_type === instrumentType
+                    : instrument.instrument_type === 'FUT' ||
+                    instrument.instrument_type === 'CE' ||
+                    instrument.instrument_type === 'PE';
+
+                // Then filter by search term if provided
+                const searchMatch = search
+                    ? instrument.tradingsymbol && instrument.tradingsymbol.includes(search)
+                    : true;
+
+                // Filter by strike price if provided (only for options)
+                const strikeMatch = strikePrice
+                    ? (instrument.instrument_type !== 'FUT' && instrument.strike === strikePrice)
+                    : true;
+
+                // Filter by expiry if provided
+                const expiryMatch = expiry
+                    ? instrument.expiry && moment(instrument.expiry).format('YYYY-MM-DD') === expiry
+                    : true;
+
+                const matches = typeMatch && searchMatch && strikeMatch && expiryMatch;
+
+                if (matches) {
+                    console.log('Matching instrument:', {
+                        tradingsymbol: instrument.tradingsymbol,
+                        type: instrument.instrument_type,
+                        strike: instrument.strike,
+                        expiry: instrument.expiry
+                    });
+                }
+
+                return matches;
+            })
             .sort((a, b) => {
                 // Sort by expiry date first
                 const dateA = new Date(a.expiry);
