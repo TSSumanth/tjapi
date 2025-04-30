@@ -3,9 +3,9 @@ const db = require("../db");
 exports.createActionItem = async (req, res) => {
   const { description, status, created_by, asset, stock_trade_id, option_trade_id } = req.body;
   try {
-    if (!(status.toUpperCase() === "TODO" || status.toUpperCase() === "COMPLETED")) {
+    if (!(status.toUpperCase() === "TODO" || status.toUpperCase() === "COMPLETED" || status.toUpperCase() === "INVALID")) {
       return res.status(400).json({
-        "message": "Invalid Status: " + status.toUpperCase() + ". Status can only be TODO and COMPLETED."
+        "message": "Invalid Status: " + status.toUpperCase() + ". Status can only be TODO, COMPLETED, or INVALID."
       });
     }
 
@@ -15,14 +15,16 @@ exports.createActionItem = async (req, res) => {
       });
     }
 
-    if (stock_trade_id && option_trade_id) {
+    // Only check for both IDs being present if they are not null/undefined
+    if (stock_trade_id !== undefined && stock_trade_id !== null &&
+      option_trade_id !== undefined && option_trade_id !== null) {
       return res.status(400).json({
         "message": "An action item can only be linked to either a stock trade or an option trade, not both."
       });
     }
 
-    // Verify trade exists if ID is provided
-    if (stock_trade_id) {
+    // Verify trade exists if ID is provided and not null
+    if (stock_trade_id !== undefined && stock_trade_id !== null) {
       const [stockTrade] = await db.pool.query(
         "SELECT tradeid FROM stock_trades WHERE tradeid = ?",
         [stock_trade_id]
@@ -34,7 +36,7 @@ exports.createActionItem = async (req, res) => {
       }
     }
 
-    if (option_trade_id) {
+    if (option_trade_id !== undefined && option_trade_id !== null) {
       const [optionTrade] = await db.pool.query(
         "SELECT tradeid FROM option_trades WHERE tradeid = ?",
         [option_trade_id]
@@ -84,9 +86,9 @@ exports.getActionItems = async (req, res) => {
     const queryParams = [];
 
     if (status) {
-      if (!(status.toUpperCase() === "TODO" || status.toUpperCase() === "COMPLETED")) {
+      if (!(status.toUpperCase() === "TODO" || status.toUpperCase() === "COMPLETED" || status.toUpperCase() === "INVALID")) {
         return res.status(400).json({
-          message: "Invalid Status: " + status.toUpperCase() + ". Status can only be TODO or COMPLETED."
+          message: "Invalid Status: " + status.toUpperCase() + ". Status can only be TODO, COMPLETED, or INVALID."
         });
       }
       query += ` AND status = ?`;
@@ -133,13 +135,15 @@ exports.updateActionItem = async (req, res) => {
       });
     }
 
-    if (stock_trade_id !== undefined && option_trade_id !== undefined) {
+    // Only check for both IDs being present if they are not null/undefined
+    if (stock_trade_id !== undefined && stock_trade_id !== null &&
+      option_trade_id !== undefined && option_trade_id !== null) {
       return res.status(400).json({
         "message": "An action item can only be linked to either a stock trade or an option trade, not both."
       });
     }
 
-    if (stock_trade_id !== undefined) {
+    if (stock_trade_id !== undefined && stock_trade_id !== null) {
       const [stockTrade] = await db.pool.query(
         "SELECT tradeid FROM stock_trades WHERE tradeid = ?",
         [stock_trade_id]
@@ -156,7 +160,7 @@ exports.updateActionItem = async (req, res) => {
       updateValues.push(null);
     }
 
-    if (option_trade_id !== undefined) {
+    if (option_trade_id !== undefined && option_trade_id !== null) {
       const [optionTrade] = await db.pool.query(
         "SELECT tradeid FROM option_trades WHERE tradeid = ?",
         [option_trade_id]
@@ -179,9 +183,9 @@ exports.updateActionItem = async (req, res) => {
     }
 
     if (status !== undefined) {
-      if (!(status.toUpperCase() === "TODO" || status.toUpperCase() === "COMPLETED")) {
+      if (!(status.toUpperCase() === "TODO" || status.toUpperCase() === "COMPLETED" || status.toUpperCase() === "INVALID")) {
         return res.status(400).json({
-          "message": "Invalid Status: " + status.toUpperCase() + ". Status can only be TODO and COMPLETED."
+          "message": "Invalid Status: " + status.toUpperCase() + ". Status can only be TODO, COMPLETED, or INVALID."
         });
       }
       updateFields.push("status");
