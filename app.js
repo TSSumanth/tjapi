@@ -10,7 +10,7 @@ const actionitemsRouter = require("./routes/actionItemRoutes");
 const strategiesRouter = require("./routes/strategiesRoutes");
 const strategyNotesRouter = require("./routes/strategyNotesRoutes");
 const liveDataRouter = require("./routes/liveDataRoute");
-const zerodhaRouter = require("./routes/zerodha");
+const zerodhaRouter = require("./routes/zerodhaRoutes");
 
 const app = express();
 
