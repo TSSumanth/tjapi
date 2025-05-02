@@ -394,7 +394,7 @@ exports.updateStockTrade = async (req, res) => {
       updateFields.push("finalexitprice");
       updateValues.push(finalexitprice);
     }
-    if (exitdate !== undefined) {
+    if (exitdate !== undefined && exitdate !== '') {
       updateFields.push("exitdate");
       updateValues.push(exitdate);
     }
@@ -845,7 +845,7 @@ exports.updateOptionTrade = async (req, res) => {
       updateFields.push("finalexitprice");
       updateValues.push(finalexitprice);
     }
-    if (exitdate !== undefined) {
+    if (exitdate !== undefined && exitdate !== '') {
       updateFields.push("exitdate");
       updateValues.push(exitdate);
     }
