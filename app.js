@@ -11,6 +11,7 @@ const strategiesRouter = require("./routes/strategiesRoutes");
 const strategyNotesRouter = require("./routes/strategyNotesRoutes");
 const liveDataRouter = require("./routes/liveDataRoute");
 const zerodhaRouter = require("./routes/zerodhaRoutes");
+const portfolioValueRouter = require("./routes/portfolioValueRoutes");
 
 const app = express();
 
@@ -62,6 +63,7 @@ app.use("/api/strategies", strategiesRouter);
 app.use("/api/strategy-notes", strategyNotesRouter);
 app.use("/api/livedata", liveDataRouter);
 app.use("/api/zerodha", zerodhaRouter);
+app.use("/api/portfolio-value", portfolioValueRouter);
 
 //Use this only at the end, if used at the beginning no matter what route is called by the client the response on the below method is only displayed
 app.all("*", (req, res, next) => {
