@@ -10,5 +10,7 @@ router.get('/', portfolioValueController.getPortfolioValue);
 router.put('/', portfolioValueController.updatePortfolioValue);
 // Delete by id and account_id
 router.delete('/', portfolioValueController.deletePortfolioValue);
+// Get all portfolio value records
+router.get('/all', portfolioValueController.getAllPortfolioValues);
 
 module.exports = router; 

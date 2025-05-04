@@ -21,17 +21,25 @@ exports.createPortfolioValue = async (req, res) => {
     }
 };
 
-// Get a portfolio value record by id and account_id
+// Get a portfolio value record by id and account_id (or just account_id)
 exports.getPortfolioValue = async (req, res) => {
     const { id, account_id } = req.query;
-    if (!id || !account_id) {
-        return res.status(400).json({ success: false, message: 'id and account_id are required.' });
+    if (!account_id) {
+        return res.status(400).json({ success: false, message: 'account_id is required.' });
     }
     try {
-        const [rows] = await pool.query(
-            `SELECT * FROM portfolio_value WHERE id = ? AND account_id = ?`,
-            [id, account_id]
-        );
+        let rows;
+        if (id) {
+            [rows] = await pool.query(
+                `SELECT * FROM portfolio_value WHERE id = ? AND account_id = ?`,
+                [id, account_id]
+            );
+        } else {
+            [rows] = await pool.query(
+                `SELECT * FROM portfolio_value WHERE account_id = ? ORDER BY created_at DESC LIMIT 1`,
+                [account_id]
+            );
+        }
         if (rows.length === 0) {
             return res.status(404).json({ success: false, message: 'Portfolio value not found.' });
         }
@@ -77,6 +85,16 @@ exports.deletePortfolioValue = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Portfolio value not found.' });
         }
         res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+};
+
+// Get all portfolio value records
+exports.getAllPortfolioValues = async (req, res) => {
+    try {
+        const [rows] = await pool.query('SELECT * FROM portfolio_value ORDER BY updated_at DESC');
+        res.json({ success: true, data: rows });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
     }
