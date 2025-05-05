@@ -1,0 +1,110 @@
+const db = require("../db");
+const moment = require("moment");
+
+
+exports.addHoliday = async (req, res) => {
+  const { name, description, date } = req.body;
+
+  try {
+    const [result] = await db.pool.query('INSERT INTO holidays (name, description, date) VALUES (?, ?, ?)', [name, description, date]);
+
+    res.status(201).json({ message: "Holiday added successfully!" });
+  } catch (err) {
+    console.error("Error adding Holiday:", err);
+    res.status(500).json({ error: "Failed to add Holiday" });
+  }
+};
+
+exports.updateHoliday = async (req, res) => {
+  const { id } = req.params;
+  const { name, description, date } = req.body;
+
+  try {
+    const [result] = await db.pool.query('UPDATE holidays SET name = ?, description = ?, date = ? WHERE id = ?', [name, description, date, id]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Holiday not found" });
+    }
+
+    // Fetch and return the updated strategy
+    const [updatedHoliday] = await db.pool.query(
+      "SELECT * FROM holidays WHERE id = ?",
+      [id]
+    );
+
+    return res.status(200).json(updatedHoliday[0]);
+  } catch (error) {
+    console.error("Error updating Holiday:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+exports.deleteHoliday = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const [result] = await db.pool.query(
+      "DELETE FROM holidays WHERE id = ?",
+      [id]
+    );
+
+    if (result.affectedRows === 1) {
+      return res.status(204).json({});
+    }
+
+    return res.status(404).json({
+      error: `No record available to delete with id:${id}`
+    });
+  } catch (error) {
+    console.error("Error deleting Holiday:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+exports.getHolidays = async (req, res) => {
+  const { startDate, endDate, financialYear, month, year } = req.query;
+  let query = 'SELECT * FROM holidays WHERE ';
+  let conditions = [];
+  let params = [];
+
+  if (startDate && endDate) {
+    conditions.push('date BETWEEN ? AND ?');
+    params.push(startDate, endDate);
+  } else if (financialYear) {
+    const [start, end] = financialYear.split('-');
+    const startFY = `${start}-04-01`;
+    const endFY = `${end}-03-31`;
+    conditions.push('date BETWEEN ? AND ?');
+    params.push(startFY, endFY);
+  } else if (month && year) {
+    conditions.push('MONTH(date) = ? AND YEAR(date) = ?');
+    params.push(month, year);
+  } else {
+    query = 'SELECT * FROM holidays'; // No filter
+  }
+
+  try {
+    const [results] = await db.pool.query(
+      conditions.length > 0 ? query + conditions.join(' AND ') : query,
+      params
+    );
+
+    const formatted = results.map(row => ({
+      ...row,
+      date: formatDate(row.date),
+    }));
+
+    return res.status(200).json(formatted);
+  } catch (error) {
+    console.error("Error fetching holidays:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+
+  // Helper function to format MySQL date
+  function formatDate(mysqlDate) {
+    const date = new Date(mysqlDate);
+    const offset = date.getTimezoneOffset();
+    const adjustedDate = new Date(date.getTime() - offset * 60 * 1000);
+    return adjustedDate.toISOString().split('T')[0]; // "YYYY-MM-DD"
+  }
+};

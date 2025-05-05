@@ -14,6 +14,7 @@ const zerodhaRouter = require("./routes/zerodhaRoutes");
 const portfolioValueRouter = require("./routes/portfolioValueRoutes");
 const orderPairsRouter = require("./routes/orderPairsRoutes");
 const manualPlRoutes = require('./routes/manualPlRoutes');
+const holidaysRouter = require("./routes/holidaysRoutes");
 
 const app = express();
 
@@ -68,6 +69,7 @@ app.use("/api/zerodha", zerodhaRouter);
 app.use("/api/portfolio-value", portfolioValueRouter);
 app.use("/api/order-pairs", orderPairsRouter);
 app.use('/api/manual-pl', manualPlRoutes);
+app.use("/api/holidays", holidaysRouter);
 
 //Use this only at the end, if used at the beginning no matter what route is called by the client the response on the below method is only displayed
 app.all("*", (req, res, next) => {

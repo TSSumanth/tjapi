@@ -147,3 +147,12 @@ CREATE TABLE IF NOT EXISTS profit_loss_report (
     total_pl INT DEFAULT '0',
     PRIMARY KEY (date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci; 
+
+-- Create holidays table
+CREATE TABLE IF NOT EXISTS holidays (
+    id INT AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL,
+    description VARCHAR(255) DEFAULT NULL,
+    date DATE NOT NULL,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
