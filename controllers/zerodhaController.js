@@ -500,6 +500,26 @@ const modifyOrder = async (req, res) => {
     }
 };
 
+// Get order by ID (order history)
+const getOrderById = async (req, res) => {
+    try {
+        const accessToken = req.headers.authorization?.split(' ')[1];
+        if (!accessToken) {
+            return res.status(401).json({
+                success: false,
+                error: 'No access token provided'
+            });
+        }
+        const { order_id } = req.params;
+        kc.setAccessToken(accessToken);
+        const orderHistory = await kc.getOrderHistory(order_id);
+        res.json({ success: true, data: orderHistory });
+    } catch (error) {
+        console.error('Error fetching order by id:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
 module.exports = {
     getPositions,
     getHoldings,
@@ -510,5 +530,6 @@ module.exports = {
     getAccount,
     placeOrder,
     cancelOrder,
-    modifyOrder
+    modifyOrder,
+    getOrderById
 }; 

@@ -9,7 +9,8 @@ const {
     getAccount,
     placeOrder,
     cancelOrder,
-    modifyOrder
+    modifyOrder,
+    getOrderById
 } = require('../controllers/zerodhaController');
 
 const router = express.Router();
@@ -28,7 +29,7 @@ router.route('/login-url')
 
 router.route('/login')
     .get(handleLogin);
- 
+
 // Orders routes
 router.route('/orders')
     .get(getOrders);
@@ -49,5 +50,7 @@ router.route('/instruments')
 // Account routes
 router.route('/account')
     .get(getAccount);
+
+router.get('/order/:order_id', getOrderById);
 
 module.exports = router; 
