@@ -7,22 +7,76 @@ exports.createOrderPair = async (req, res) => {
         order2_id,
         type = 'OCO',
         status = 'active',
-        order1_symbol,
-        order2_symbol,
-        order1_type,
-        order2_type
+        // Order 1 details
+        order1_details,
+        order1_tradingsymbol,
+        order1_transaction_type,
+        order1_quantity,
+        order1_price,
+        order1_product,
+        order1_order_type,
+        order1_validity,
+        // Order 2 details
+        order2_details,
+        order2_tradingsymbol,
+        order2_transaction_type,
+        order2_quantity,
+        order2_price,
+        order2_product,
+        order2_order_type,
+        order2_validity
     } = req.body;
-    if (!order1_id || !order2_id) {
-        return res.status(400).json({ error: 'order1_id and order2_id are required' });
+
+    // Validate required fields based on order type
+    if (!order1_id) {
+        return res.status(400).json({ error: 'order1_id is required' });
     }
+
+    if (type === 'OCO') {
+        if (!order2_id) {
+            return res.status(400).json({ error: 'order2_id is required for OCO orders' });
+        }
+        if (!order1_details || !order2_details) {
+            return res.status(400).json({ error: 'order1_details and order2_details are required for OCO orders' });
+        }
+    } else if (type === 'OAO') {
+        if (!order2_details) {
+            return res.status(400).json({ error: 'order2_details is required for OAO orders' });
+        }
+    }
+
     try {
-        const sql = `INSERT INTO order_pairs 
-            (order1_id, order2_id, type, status, order1_symbol, order2_symbol, order1_type, order2_type)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
-        const [result] = await db.pool.query(sql, [
+        const sql = `INSERT INTO order_pairs (
             order1_id, order2_id, type, status,
-            order1_symbol, order2_symbol, order1_type, order2_type
+            order1_details, order1_tradingsymbol, order1_transaction_type, order1_quantity, 
+            order1_price, order1_product, order1_order_type, order1_validity,
+            order2_details, order2_tradingsymbol, order2_transaction_type, order2_quantity,
+            order2_price, order2_product, order2_order_type, order2_validity
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+        const [result] = await db.pool.query(sql, [
+            order1_id,
+            order2_id,
+            type,
+            status,
+            JSON.stringify(order1_details),
+            order1_tradingsymbol,
+            order1_transaction_type,
+            order1_quantity,
+            order1_price,
+            order1_product,
+            order1_order_type,
+            order1_validity,
+            JSON.stringify(order2_details),
+            order2_tradingsymbol,
+            order2_transaction_type,
+            order2_quantity,
+            order2_price,
+            order2_product,
+            order2_order_type,
+            order2_validity
         ]);
+
         const [rows] = await db.pool.query('SELECT * FROM order_pairs WHERE id = ?', [result.insertId]);
         return res.status(201).json(rows[0]);
     } catch (err) {
@@ -58,20 +112,44 @@ exports.deleteOrderPair = async (req, res) => {
     }
 };
 
-// Update status of an order pair
+// Update status and details of an order pair
 exports.updateOrderPairStatus = async (req, res) => {
     const { id } = req.params;
-    const { status } = req.body;
-    if (!id || !status) return res.status(400).json({ error: 'id and status are required' });
+    if (!id) return res.status(400).json({ error: 'id param is required' });
+
+    // Allowed fields to update
+    const allowedFields = [
+        'status',
+        'order1_details', 'order1_tradingsymbol', 'order1_transaction_type', 'order1_quantity', 'order1_price', 'order1_product', 'order1_order_type', 'order1_validity',
+        'order2_details', 'order2_tradingsymbol', 'order2_transaction_type', 'order2_quantity', 'order2_price', 'order2_product', 'order2_order_type', 'order2_validity'
+    ];
+    const updates = [];
+    const values = [];
+    for (const field of allowedFields) {
+        if (req.body[field] !== undefined) {
+            if (field === 'order1_details' || field === 'order2_details') {
+                updates.push(`${field} = ?`);
+                values.push(JSON.stringify(req.body[field]));
+            } else {
+                updates.push(`${field} = ?`);
+                values.push(req.body[field]);
+            }
+        }
+    }
+    if (updates.length === 0) {
+        return res.status(400).json({ error: 'No valid fields provided for update' });
+    }
     try {
-        const [result] = await db.pool.query('UPDATE order_pairs SET status = ? WHERE id = ?', [status, id]);
+        const sql = `UPDATE order_pairs SET ${updates.join(', ')} WHERE id = ?`;
+        values.push(id);
+        const [result] = await db.pool.query(sql, values);
         if (result.affectedRows === 0) {
             return res.status(404).json({ error: 'Order pair not found' });
         }
         const [rows] = await db.pool.query('SELECT * FROM order_pairs WHERE id = ?', [id]);
         return res.status(200).json(rows[0]);
     } catch (err) {
-        console.error('Error updating order pair status:', err);
+        console.error('Error updating order pair:', err);
         return res.status(500).json({ error: 'Internal server error' });
     }
 }; 
