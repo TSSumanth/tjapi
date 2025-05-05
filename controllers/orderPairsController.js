@@ -2,13 +2,27 @@ const db = require('../db');
 
 // Create a new order pair
 exports.createOrderPair = async (req, res) => {
-    const { order1_id, order2_id, type = 'OCO', status = 'active' } = req.body;
+    const {
+        order1_id,
+        order2_id,
+        type = 'OCO',
+        status = 'active',
+        order1_symbol,
+        order2_symbol,
+        order1_type,
+        order2_type
+    } = req.body;
     if (!order1_id || !order2_id) {
         return res.status(400).json({ error: 'order1_id and order2_id are required' });
     }
     try {
-        const sql = 'INSERT INTO order_pairs (order1_id, order2_id, type, status) VALUES (?, ?, ?, ?)';
-        const [result] = await db.pool.query(sql, [order1_id, order2_id, type, status]);
+        const sql = `INSERT INTO order_pairs 
+            (order1_id, order2_id, type, status, order1_symbol, order2_symbol, order1_type, order2_type)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+        const [result] = await db.pool.query(sql, [
+            order1_id, order2_id, type, status,
+            order1_symbol, order2_symbol, order1_type, order2_type
+        ]);
         const [rows] = await db.pool.query('SELECT * FROM order_pairs WHERE id = ?', [result.insertId]);
         return res.status(201).json(rows[0]);
     } catch (err) {
