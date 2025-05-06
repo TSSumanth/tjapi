@@ -101,6 +101,10 @@ exports.getStrategies = async (req, res) => {
       query += ` AND name REGEXP ?`;
       params.push(name);
     }
+    if (req.query.symbol) {
+      query += " AND symbol = ?";
+      params.push(req.query.symbol);
+    }
     if (status) {
       query += " AND status = ?";
       params.push(status.toUpperCase());
