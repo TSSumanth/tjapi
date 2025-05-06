@@ -404,7 +404,6 @@ const placeOrder = async (req, res) => {
             price,
             trigger_price
         });
-
         res.json({
             success: true,
             order_id: order.order_id
@@ -486,7 +485,6 @@ const modifyOrder = async (req, res) => {
             order_type,
             trigger_price
         });
-
         res.json({
             success: true,
             order_id: response.order_id
