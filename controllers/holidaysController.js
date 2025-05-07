@@ -62,14 +62,17 @@ exports.deleteHoliday = async (req, res) => {
 };
 
 exports.getHolidays = async (req, res) => {
-  const { startDate, endDate, financialYear, month, year } = req.query;
+  const { startDate, endDate, financialYear, month, year, name } = req.query;
   let query = 'SELECT * FROM holidays WHERE ';
   let conditions = [];
   let params = [];
 
   if (startDate && endDate) {
+    // Convert the dates to YYYY-MM-DD format
+    const formattedStartDate = moment(startDate).format('YYYY-MM-DD');
+    const formattedEndDate = moment(endDate).format('YYYY-MM-DD');
     conditions.push('date BETWEEN ? AND ?');
-    params.push(startDate, endDate);
+    params.push(formattedStartDate, formattedEndDate);
   } else if (financialYear) {
     const [start, end] = financialYear.split('-');
     const startFY = `${start}-04-01`;
@@ -79,13 +82,16 @@ exports.getHolidays = async (req, res) => {
   } else if (month && year) {
     conditions.push('MONTH(date) = ? AND YEAR(date) = ?');
     params.push(month, year);
-  } else {
-    query = 'SELECT * FROM holidays'; // No filter
+  }
+
+  if (name) {
+    conditions.push('name LIKE ?');
+    params.push(`%${name}%`);
   }
 
   try {
     const [results] = await db.pool.query(
-      conditions.length > 0 ? query + conditions.join(' AND ') : query,
+      conditions.length > 0 ? query + conditions.join(' AND ') : 'SELECT * FROM holidays',
       params
     );
 
