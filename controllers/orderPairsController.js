@@ -7,24 +7,8 @@ exports.createOrderPair = async (req, res) => {
         order2_id,
         type = 'OCO',
         status = 'active',
-        // Order 1 details
         order1_details,
-        order1_tradingsymbol,
-        order1_transaction_type,
-        order1_quantity,
-        order1_price,
-        order1_product,
-        order1_order_type,
-        order1_validity,
-        // Order 2 details
-        order2_details,
-        order2_tradingsymbol,
-        order2_transaction_type,
-        order2_quantity,
-        order2_price,
-        order2_product,
-        order2_order_type,
-        order2_validity
+        order2_details
     } = req.body;
 
     // Validate required fields based on order type
@@ -48,11 +32,8 @@ exports.createOrderPair = async (req, res) => {
     try {
         const sql = `INSERT INTO order_pairs (
             order1_id, order2_id, type, status,
-            order1_details, order1_tradingsymbol, order1_transaction_type, order1_quantity, 
-            order1_price, order1_product, order1_order_type, order1_validity,
-            order2_details, order2_tradingsymbol, order2_transaction_type, order2_quantity,
-            order2_price, order2_product, order2_order_type, order2_validity
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+            order1_details, order2_details
+        ) VALUES (?, ?, ?, ?, ?, ?)`;
 
         const [result] = await db.pool.query(sql, [
             order1_id,
@@ -60,21 +41,7 @@ exports.createOrderPair = async (req, res) => {
             type,
             status,
             JSON.stringify(order1_details),
-            order1_tradingsymbol,
-            order1_transaction_type,
-            order1_quantity,
-            order1_price,
-            order1_product,
-            order1_order_type,
-            order1_validity,
-            JSON.stringify(order2_details),
-            order2_tradingsymbol,
-            order2_transaction_type,
-            order2_quantity,
-            order2_price,
-            order2_product,
-            order2_order_type,
-            order2_validity
+            JSON.stringify(order2_details)
         ]);
 
         const [rows] = await db.pool.query('SELECT * FROM order_pairs WHERE id = ?', [result.insertId]);
@@ -120,20 +87,15 @@ exports.updateOrderPairStatus = async (req, res) => {
     // Allowed fields to update
     const allowedFields = [
         'status',
-        'order1_details', 'order1_tradingsymbol', 'order1_transaction_type', 'order1_quantity', 'order1_price', 'order1_product', 'order1_order_type', 'order1_validity',
-        'order2_details', 'order2_tradingsymbol', 'order2_transaction_type', 'order2_quantity', 'order2_price', 'order2_product', 'order2_order_type', 'order2_validity'
+        'order1_details',
+        'order2_details'
     ];
     const updates = [];
     const values = [];
     for (const field of allowedFields) {
         if (req.body[field] !== undefined) {
-            if (field === 'order1_details' || field === 'order2_details') {
-                updates.push(`${field} = ?`);
-                values.push(JSON.stringify(req.body[field]));
-            } else {
-                updates.push(`${field} = ?`);
-                values.push(req.body[field]);
-            }
+            updates.push(`${field} = ?`);
+            values.push(JSON.stringify(req.body[field]));
         }
     }
     if (updates.length === 0) {
