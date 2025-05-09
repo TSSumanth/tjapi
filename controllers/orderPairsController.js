@@ -95,7 +95,12 @@ exports.updateOrderPairStatus = async (req, res) => {
     for (const field of allowedFields) {
         if (req.body[field] !== undefined) {
             updates.push(`${field} = ?`);
-            values.push(JSON.stringify(req.body[field]));
+            // Only stringify the details fields, not the status
+            if (field === 'status') {
+                values.push(req.body[field]);
+            } else {
+                values.push(JSON.stringify(req.body[field]));
+            }
         }
     }
     if (updates.length === 0) {
