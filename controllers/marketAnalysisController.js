@@ -1,6 +1,14 @@
 const db = require("./../db");
 const moment = require("moment");
 
+// Helper for consistent responses
+function sendResponse(res, { success, data = null, message = '', error = null, status = 200, meta = undefined }) {
+  const resp = { success, data, message };
+  if (error) resp.error = error;
+  if (meta) resp.meta = meta;
+  res.status(status).json(resp);
+}
+
 exports.createMarketAnalysis = async (req, res) => {
   const {
     date,
@@ -11,6 +19,10 @@ exports.createMarketAnalysis = async (req, res) => {
     premarketexpectation,
     marketmovement,
   } = req.body;
+
+  if (!date) {
+    return sendResponse(res, { success: false, message: 'Date is required', error: 'VALIDATION_ERROR', status: 400 });
+  }
 
   try {
     const sql =
@@ -26,17 +38,30 @@ exports.createMarketAnalysis = async (req, res) => {
       marketmovement,
     ]);
 
-    res.status(201).json({ message: "Analysis added successfully!" });
+    sendResponse(res, { success: true, message: "Analysis added successfully!", data: { id: result.insertId }, status: 201 });
   } catch (err) {
     console.error("Error creating market analysis:", err);
-    res.status(500).json({ error: "Failed to create market analysis" });
+    sendResponse(res, { success: false, message: "Failed to create market analysis", error: err.message, status: 500 });
   }
 };
 
 exports.getAllMarketAnalysis = async (req, res) => {
+  let { page = 1, limit = 20 } = req.query;
+  page = parseInt(page);
+  limit = parseInt(limit);
+  if (isNaN(page) || page < 1) page = 1;
+  if (isNaN(limit) || limit < 1) limit = 20;
+  const offset = (page - 1) * limit;
+
   try {
+    // Get total count
+    const [countResult] = await db.pool.query("SELECT COUNT(*) as count FROM marketanalysis");
+    const total = countResult[0].count;
+
+    // Get paginated results
     const [results] = await db.pool.query(
-      "SELECT * FROM marketanalysis ORDER BY date DESC"
+      "SELECT * FROM marketanalysis ORDER BY date DESC LIMIT ? OFFSET ?",
+      [limit, offset]
     );
 
     const formattedresults = results.map((result) => ({
@@ -44,10 +69,14 @@ exports.getAllMarketAnalysis = async (req, res) => {
       date: moment(result.date).format("YYYY-MM-DD"),
     }));
 
-    res.json(formattedresults);
+    sendResponse(res, {
+      success: true,
+      data: formattedresults,
+      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    });
   } catch (err) {
     console.error("Error fetching market analysis:", err);
-    res.status(500).json({ error: "Failed to fetch market analysis" });
+    sendResponse(res, { success: false, message: "Failed to fetch market analysis", error: err.message, status: 500 });
   }
 };
 
@@ -61,7 +90,7 @@ exports.getMarketAnalysis = async (req, res) => {
     );
 
     if (results.length === 0) {
-      return res.status(404).json({ message: "Analysis not found" });
+      return sendResponse(res, { success: false, message: "Analysis not found", error: "NOT_FOUND", status: 404 });
     }
 
     const formattedresults = results.map((result) => ({
@@ -69,10 +98,10 @@ exports.getMarketAnalysis = async (req, res) => {
       date: moment(result.date).format("YYYY-MM-DD"),
     }));
 
-    res.status(200).json(formattedresults);
+    sendResponse(res, { success: true, data: formattedresults[0] });
   } catch (error) {
     console.error("Error fetching Analysis:", error);
-    res.status(500).json({ message: "Internal server error" });
+    sendResponse(res, { success: false, message: "Internal server error", error: error.message, status: 500 });
   }
 };
 
@@ -128,13 +157,13 @@ exports.updateMarketAnalysis = async (req, res) => {
     const [result] = await db.pool.query(sqlQuery, updateValues);
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Analysis not found" });
+      return sendResponse(res, { success: false, message: "Analysis not found", error: "NOT_FOUND", status: 404 });
     }
 
-    res.status(200).json({ message: "Analysis updated successfully" });
+    sendResponse(res, { success: true, message: "Analysis updated successfully" });
   } catch (error) {
     console.error("Error updating analysis:", error);
-    res.status(500).json({ message: "Internal server error" });
+    sendResponse(res, { success: false, message: "Internal server error", error: error.message, status: 500 });
   }
 };
 
@@ -148,14 +177,12 @@ exports.deleteMarketAnalysis = async (req, res) => {
     );
 
     if (result.affectedRows === 1) {
-      return res.status(204).json({});
+      return sendResponse(res, { success: true, message: "Analysis deleted successfully", status: 200 });
     }
 
-    return res.status(404).json({
-      error: `No record available to delete with id:${id}`
-    });
+    return sendResponse(res, { success: false, message: `No record available to delete with id:${id}`, error: "NOT_FOUND", status: 404 });
   } catch (error) {
     console.error("Error deleting Analysis:", error);
-    res.status(500).json({ message: "Internal server error" });
+    sendResponse(res, { success: false, message: "Internal server error", error: error.message, status: 500 });
   }
 };
