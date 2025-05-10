@@ -2,7 +2,7 @@ const db = require("../db");
 const moment = require("moment");
 
 exports.createStrategy = async (req, res) => {
-  let { name, description, created_at, stock_trades, option_trades, status, symbol, realized_pl, unrealized_pl } = req.body;
+  let { name, description, created_at, stock_trades, option_trades, status, symbol, symbol_ltp, realized_pl, unrealized_pl } = req.body;
 
   if (!name) {
     return res.status(400).json({
@@ -43,11 +43,12 @@ exports.createStrategy = async (req, res) => {
     if (option_trades === undefined || option_trades === null) option_trades = JSON.stringify([]);
     if (realized_pl === undefined || realized_pl === null) realized_pl = 0.00;
     if (unrealized_pl === undefined || unrealized_pl === null) unrealized_pl = 0.00;
+    if (symbol_ltp === undefined || symbol_ltp === null) symbol_ltp = 0.00;
 
     // Insert new strategy
     const [result] = await db.pool.query(
-      "INSERT INTO strategies (name, description, status, stock_trades, option_trades, created_at, symbol, realized_pl, unrealized_pl) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      [name.toUpperCase(), description, status.toUpperCase(), stock_trades, option_trades, created_at, symbol, realized_pl, unrealized_pl]
+      "INSERT INTO strategies (name, description, status, stock_trades, option_trades, created_at, symbol, symbol_ltp, realized_pl, unrealized_pl) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [name.toUpperCase(), description, status.toUpperCase(), stock_trades, option_trades, created_at, symbol, symbol_ltp, realized_pl, unrealized_pl]
     );
 
     if (result.affectedRows === 1) {
@@ -128,7 +129,7 @@ exports.getStrategies = async (req, res) => {
 
 exports.updateStrategy = async (req, res) => {
   const { id } = req.query;
-  let { name, description, stock_trades, option_trades, status, symbol, realized_pl, unrealized_pl } = req.body;
+  let { name, description, stock_trades, option_trades, status, symbol, symbol_ltp, realized_pl, unrealized_pl } = req.body;
 
   try {
     if (status && !(status.toUpperCase() === "OPEN" || status.toUpperCase() === "CLOSE")) {
@@ -166,6 +167,10 @@ exports.updateStrategy = async (req, res) => {
     if (symbol !== undefined) {
       updateFields.push("symbol");
       updateValues.push(symbol);
+    }
+    if (symbol_ltp !== undefined) {
+      updateFields.push("symbol_ltp");
+      updateValues.push(parseFloat(symbol_ltp).toFixed(2));
     }
     if (realized_pl !== undefined) {
       updateFields.push("realized_pl");
