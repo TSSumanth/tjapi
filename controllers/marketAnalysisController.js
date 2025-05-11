@@ -46,22 +46,51 @@ exports.createMarketAnalysis = async (req, res) => {
 };
 
 exports.getAllMarketAnalysis = async (req, res) => {
-  let { page = 1, limit = 20 } = req.query;
+  let { page = 1, limit = 20, startDate, endDate, searchText, premarketexpectation, marketmovement } = req.query;
   page = parseInt(page);
   limit = parseInt(limit);
   if (isNaN(page) || page < 1) page = 1;
   if (isNaN(limit) || limit < 1) limit = 20;
   const offset = (page - 1) * limit;
 
+  let whereClauses = [];
+  let params = [];
+
+  if (startDate) {
+    whereClauses.push("date >= ?");
+    params.push(startDate);
+  }
+  if (endDate) {
+    whereClauses.push("date <= ?");
+    params.push(endDate);
+  }
+  if (searchText) {
+    whereClauses.push("(event_description LIKE ? OR premarket_analysis LIKE ? OR postmarket_analysis LIKE ?)");
+    params.push(`%${searchText}%`, `%${searchText}%`, `%${searchText}%`);
+  }
+  if (premarketexpectation) {
+    whereClauses.push("premarket_expectation = ?");
+    params.push(premarketexpectation);
+  }
+  if (marketmovement) {
+    whereClauses.push("market_movement = ?");
+    params.push(marketmovement);
+  }
+
+  const whereSQL = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
   try {
     // Get total count
-    const [countResult] = await db.pool.query("SELECT COUNT(*) as count FROM marketanalysis");
+    const [countResult] = await db.pool.query(
+      `SELECT COUNT(*) as count FROM marketanalysis ${whereSQL}`,
+      params
+    );
     const total = countResult[0].count;
 
     // Get paginated results
     const [results] = await db.pool.query(
-      "SELECT * FROM marketanalysis ORDER BY date DESC LIMIT ? OFFSET ?",
-      [limit, offset]
+      `SELECT * FROM marketanalysis ${whereSQL} ORDER BY date DESC LIMIT ? OFFSET ?`,
+      [...params, limit, offset]
     );
 
     const formattedresults = results.map((result) => ({
