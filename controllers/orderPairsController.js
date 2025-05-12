@@ -88,15 +88,16 @@ exports.updateOrderPairStatus = async (req, res) => {
     const allowedFields = [
         'status',
         'order1_details',
-        'order2_details'
+        'order2_details',
+        'order2_id'
     ];
     const updates = [];
     const values = [];
     for (const field of allowedFields) {
         if (req.body[field] !== undefined) {
             updates.push(`${field} = ?`);
-            // Only stringify the details fields, not the status
-            if (field === 'status') {
+            // Only stringify the details fields, not the status or order2_id
+            if (field === 'status' || field === 'order2_id') {
                 values.push(req.body[field]);
             } else {
                 values.push(JSON.stringify(req.body[field]));
