@@ -177,12 +177,12 @@ const getOrders = async (req, res) => {
         const orders = await kc.getOrders();
 
         // Process orders data - return all orders
-        const processedOrders = orders.map(order => ({
+        const processedOrders = Array.isArray(orders) ? orders.map(order => ({
             ...order,
             average_price: parseFloat(order.average_price),
             price: parseFloat(order.price),
             trigger_price: parseFloat(order.trigger_price)
-        }));
+        })) : [];
 
         res.json({
             success: true,
