@@ -6,6 +6,8 @@ const orderPairsController = require('../controllers/orderPairsController');
 router.post('/', orderPairsController.createOrderPair);
 // Get all order pairs
 router.get('/', orderPairsController.getOrderPairs);
+// Get completed order pairs
+router.get('/completed', orderPairsController.getCompletedOrderPairs);
 // Delete (cancel) an order pair by id
 router.delete('/:id', orderPairsController.deleteOrderPair);
 // Update status of an order pair

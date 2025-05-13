@@ -52,13 +52,38 @@ exports.createOrderPair = async (req, res) => {
     }
 };
 
-// Get all order pairs
+// Get all order pairs with optional status filter
 exports.getOrderPairs = async (req, res) => {
+    const { status } = req.query;
     try {
-        const [rows] = await db.pool.query('SELECT * FROM order_pairs ORDER BY created_at DESC');
-        return res.status(200).json(rows);
+        let sql = 'SELECT * FROM order_pairs';
+        const params = [];
+
+        if (status) {
+            sql += ' WHERE status = ?';
+            params.push(status);
+        }
+
+        sql += ' ORDER BY created_at DESC';
+
+        const [rows] = await db.pool.query(sql, params);
+        return res.json(rows);
     } catch (err) {
         console.error('Error fetching order pairs:', err);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+// Get completed order pairs
+exports.getCompletedOrderPairs = async (req, res) => {
+    try {
+        const [rows] = await db.pool.query(
+            'SELECT * FROM order_pairs WHERE status = ? ORDER BY created_at DESC',
+            ['COMPLETED']
+        );
+        return res.json(rows);
+    } catch (err) {
+        console.error('Error fetching completed order pairs:', err);
         return res.status(500).json({ error: 'Internal server error' });
     }
 };
