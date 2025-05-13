@@ -3,10 +3,15 @@ const moment = require("moment");
 
 
 exports.addHoliday = async (req, res) => {
-  const { name, description, date } = req.body;
+  const { name, description, date, priority } = req.body;
 
   try {
-    const [result] = await db.pool.query('INSERT INTO holidays (name, description, date) VALUES (?, ?, ?)', [name, description, date]);
+    if (!(priority.toUpperCase() === "HIGH" || priority.toUpperCase() === "MEDIUM" || priority.toUpperCase() === "LOW")) {
+      return res.status(400).json({
+        "message": "Invalid Priority: " + priority.toUpperCase() + ". Priority can only be HIGH, MEDIUM or LOW."
+      });
+    }
+    const [result] = await db.pool.query('INSERT INTO holidays (name, description, date, priority) VALUES (?, ?, ?, ?)', [name, description, date, priority]);
 
     res.status(201).json({ message: "Holiday added successfully!" });
   } catch (err) {
@@ -16,11 +21,59 @@ exports.addHoliday = async (req, res) => {
 };
 
 exports.updateHoliday = async (req, res) => {
-  const { id } = req.params;
-  const { name, description, date } = req.body;
-
   try {
-    const [result] = await db.pool.query('UPDATE holidays SET name = ?, description = ?, date = ? WHERE id = ?', [name, description, date, id]);
+    const { id } = req.params;
+    const { name, description, date, priority } = req.body;
+
+    // Build the query string to update the order
+    let updateFields = [];
+    let updateValues = [];
+
+    if (name === undefined && description === undefined && date === undefined && priority === undefined) {
+      return res.status(400).json({
+        "message": "No Fields passed to update the item: Add name, description, date or priority."
+      });
+    }
+
+    if (name !== undefined) {
+      updateFields.push("name");
+      updateValues.push(name);
+    }
+
+    if (description !== undefined) {
+      updateFields.push("description");
+      updateValues.push(description);
+    }
+
+    if (date !== undefined) {
+      updateFields.push("date");
+      updateValues.push(date);
+    }
+
+    if (name !== undefined) {
+      updateFields.push("name");
+      updateValues.push(name);
+    }
+
+    if (priority !== undefined) {
+      if (!(priority.toUpperCase() === "HIGH" || priority.toUpperCase() === "MEDIUM" || priority.toUpperCase() === "LOW")) {
+        return res.status(400).json({
+          "message": "Invalid priority: " + priority.toUpperCase() + ". priority can only be HIGH, MEDIUM or LOW."
+        });
+      }
+      updateFields.push("priority");
+      updateValues.push(priority.toUpperCase());
+    }
+
+    const sqlQuery = `
+    UPDATE holidays
+    SET ${updateFields.map((field) => `${field} = ?`).join(", ")}
+    WHERE id = ?
+  `;
+    updateValues.push(id);
+    console.log('Update query:', sqlQuery, updateValues);
+
+    const [result] = await db.pool.query(sqlQuery, updateValues);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "Holiday not found" });
