@@ -84,8 +84,8 @@ exports.createStockTrade = async (req, res) => {
   if (closedquantity === undefined) closedquantity = quantity - openquantity;
   if (exitaverageprice === undefined) exitaverageprice = 0;
   if (finalexitprice === undefined) finalexitprice = 0;
-  if (exitdate === undefined) exitdate = null;
-  if (lastmodifieddate === undefined) lastmodifieddate = null;
+  if (exitdate === undefined || exitdate === "") exitdate = null;
+  if (lastmodifieddate === undefined || lastmodifieddate === "") lastmodifieddate = null;
   if (overallreturn === undefined) overallreturn = 0;
   if (ltp === undefined) ltp = null;
 
@@ -390,7 +390,7 @@ exports.updateStockTrade = async (req, res) => {
       updateFields.push("exitaverageprice");
       updateValues.push(exitaverageprice);
     }
-    if (finalexitprice !== undefined) {
+    if (finalexitprice !== undefined && finalexitprice !== "") {
       updateFields.push("finalexitprice");
       updateValues.push(finalexitprice);
     }
@@ -398,7 +398,7 @@ exports.updateStockTrade = async (req, res) => {
       updateFields.push("exitdate");
       updateValues.push(exitdate);
     }
-    if (lastmodifieddate !== undefined) {
+    if (lastmodifieddate !== undefined && lastmodifieddate !== '') {
       updateFields.push("lastmodifieddate");
       updateValues.push(lastmodifieddate);
     }
@@ -536,8 +536,8 @@ exports.createOptionTrade = async (req, res) => {
     if (closedquantity === undefined) closedquantity = quantity - openquantity;
     if (exitaverageprice === undefined) exitaverageprice = 0;
     if (finalexitprice === undefined) finalexitprice = 0;
-    if (exitdate === undefined) exitdate = null;
-    if (lastmodifieddate === undefined) lastmodifieddate = null;
+    if (exitdate === undefined || exitdate === "") exitdate = null;
+    if (lastmodifieddate === undefined || lastmodifieddate === "") lastmodifieddate = null;
     if (overallreturn === undefined) overallreturn = 0;
     if (premiumamount === undefined) premiumamount = capitalused;
     if (ltp === undefined) ltp = null;
@@ -809,7 +809,7 @@ exports.updateOptionTrade = async (req, res) => {
       updateFields.push("entryprice");
       updateValues.push(entryprice);
     }
-    if (entrydate !== undefined) {
+    if (entrydate !== undefined && entrydate !== "") {
       updateFields.push("entrydate");
       updateValues.push(entrydate);
     }
@@ -841,7 +841,7 @@ exports.updateOptionTrade = async (req, res) => {
       updateFields.push("exitaverageprice");
       updateValues.push(exitaverageprice);
     }
-    if (finalexitprice !== undefined) {
+    if (finalexitprice !== undefined && finalexitprice !== "") {
       updateFields.push("finalexitprice");
       updateValues.push(finalexitprice);
     }
@@ -849,7 +849,7 @@ exports.updateOptionTrade = async (req, res) => {
       updateFields.push("exitdate");
       updateValues.push(exitdate);
     }
-    if (lastmodifieddate !== undefined) {
+    if (lastmodifieddate !== undefined && lastmodifieddate !== '') {
       updateFields.push("lastmodifieddate");
       updateValues.push(lastmodifieddate);
     }
