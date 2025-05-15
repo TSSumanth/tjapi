@@ -14,5 +14,7 @@ router.get('/depth', ZerodhaWebSocketController.getMarketDepth);
 router.get('/subscriptions', ZerodhaWebSocketController.getSubscriptions);
 // Health/status endpoint
 router.get('/status', ZerodhaWebSocketController.getStatus);
+// Set access token
+router.post('/set-access-token', ZerodhaWebSocketController.setAccessToken);
 
 module.exports = router; 
