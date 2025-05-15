@@ -23,23 +23,65 @@ async function loadTokensFromDBAndSubscribe() {
 }
 
 function initTicker() {
-    if (ticker) return ticker;
+    if (ticker) {
+        ticker.disconnect();
+        ticker = null;
+    }
+
+    if (!accessToken) {
+        console.error('No access token available for KiteTicker');
+        return null;
+    }
+
     ticker = new KiteTicker({ api_key: apiKey, access_token: accessToken });
-    ticker.connect();
+
     ticker.on('ticks', (ticks) => {
         ticks.forEach(tick => {
             latestTicks[tick.instrument_token] = tick;
         });
     });
+
     ticker.on('connect', async () => {
+        console.log('KiteTicker connected successfully');
         await loadTokensFromDBAndSubscribe();
     });
+
     ticker.on('disconnect', () => {
         console.warn('KiteTicker disconnected');
+        // Attempt to reconnect after 5 seconds
+        setTimeout(() => {
+            console.log('Attempting to reconnect KiteTicker...');
+            initTicker();
+        }, 5000);
     });
+
     ticker.on('error', (err) => {
         console.error('KiteTicker error:', err);
+        if (err.message.includes('400')) {
+            console.error('Access token may be invalid or expired');
+            // Disconnect and clear the ticker instance
+            if (ticker) {
+                ticker.disconnect();
+                ticker = null;
+            }
+        }
     });
+
+    ticker.on('noreconnect', () => {
+        console.error('KiteTicker noreconnect');
+    });
+
+    ticker.on('reconnect', (reconnectAttempt, reconnectDelay) => {
+        console.log(`KiteTicker reconnecting... Attempt: ${reconnectAttempt}, Delay: ${reconnectDelay}ms`);
+    });
+
+    try {
+        ticker.connect();
+    } catch (err) {
+        console.error('Failed to connect KiteTicker:', err);
+        return null;
+    }
+
     return ticker;
 }
 
@@ -138,12 +180,23 @@ exports.getStatus = (req, res) => {
 // API: Set/update the access token for KiteTicker
 exports.setAccessToken = (req, res) => {
     const { access_token } = req.body;
-    if (!access_token) return res.status(400).json({ error: 'access_token required' });
+    if (!access_token) {
+        return res.status(400).json({ error: 'access_token required' });
+    }
+
     accessToken = access_token;
-    // Optionally: re-initialize ticker with new token
+    console.log('Access token updated, reinitializing KiteTicker...');
+
+    // Re-initialize ticker with new token
     if (ticker) {
         ticker.disconnect();
         ticker = null;
     }
-    res.json({ success: true });
+
+    const newTicker = initTicker();
+    if (!newTicker) {
+        return res.status(500).json({ error: 'Failed to initialize KiteTicker with new token' });
+    }
+
+    res.json({ success: true, message: 'Access token updated and KiteTicker reinitialized' });
 }; 
