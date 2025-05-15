@@ -14,6 +14,7 @@ const portfolioValueRouter = require("./routes/portfolioValueRoutes");
 const orderPairsRouter = require("./routes/orderPairsRoutes");
 const manualPlRoutes = require('./routes/manualPlRoutes');
 const holidaysRouter = require("./routes/holidaysRoutes");
+const zerodhaWebSocketRouter = require("./routes/ZerodhaWebSocketRoutes");
 
 const app = express();
 
@@ -64,6 +65,7 @@ app.use("/api/actionitems", actionitemsRouter);
 app.use("/api/strategies", strategiesRouter);
 app.use("/api/strategy-notes", strategyNotesRouter);
 app.use("/api/zerodha", zerodhaRouter);
+app.use("/api/zerodha-ws", zerodhaWebSocketRouter);
 app.use("/api/portfolio-value", portfolioValueRouter);
 app.use("/api/order-pairs", orderPairsRouter);
 app.use('/api/manual-pl', manualPlRoutes);
