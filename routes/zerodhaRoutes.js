@@ -5,12 +5,12 @@ const {
     getLoginUrl,
     handleLogin,
     getOrders,
-    getInstruments,
     getAccount,
     placeOrder,
     cancelOrder,
     modifyOrder,
-    getOrderById
+    getOrderById,
+    refreshZerodhaInstruments
 } = require('../controllers/zerodhaController');
 
 const router = express.Router();
@@ -43,9 +43,11 @@ router.route('/order/:order_id/cancel')
 router.route('/order/:order_id/modify')
     .post(modifyOrder);
 
-// Instruments routes
-router.route('/instruments')
-    .get(getInstruments);
+
+
+// Refresh instruments (manual trigger)
+router.route('/instruments/refresh')
+    .post(refreshZerodhaInstruments);
 
 // Account routes
 router.route('/account')

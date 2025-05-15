@@ -1,6 +1,9 @@
 const { KiteConnect } = require('kiteconnect');
 const moment = require('moment');
 const axios = require('axios');
+const fs = require('fs');
+const csv = require('csv-parse');
+const db = require('../db'); // Use shared DB connection
 
 const kc = new KiteConnect({
     api_key: process.env.ZERODHA_API_KEY
@@ -197,93 +200,6 @@ const getOrders = async (req, res) => {
     }
 };
 
-// Get instruments
-const getInstruments = async (req, res) => {
-    try {
-        const accessToken = req.headers.authorization?.split(' ')[1];
-        if (!accessToken) {
-            return res.status(401).json({
-                success: false,
-                error: 'No access token provided'
-            });
-        }
-
-        kc.setAccessToken(accessToken);
-        const instruments = await kc.getInstruments();
-
-        if (!instruments || instruments.length === 0) {
-            return res.json({
-                success: true,
-                data: [],
-                total: 0,
-                page: 1,
-                pageSize: 0
-            });
-        }
-
-        // Get pagination and search parameters
-        const page = parseInt(req.query.page) || 1;
-        const pageSize = parseInt(req.query.pageSize) || 100;
-        const search = req.query.search?.toUpperCase();
-        const strikePrice = parseFloat(req.query.strike);
-        const expiry = req.query.expiry;
-        const instrumentType = req.query.type?.toUpperCase();
-        const startIndex = (page - 1) * pageSize;
-        const endIndex = startIndex + pageSize;
-
-        // Filter and sort instruments
-        const sortedInstruments = instruments
-            .filter(instrument => {
-                if (!instrument) return false;
-
-                const typeMatch = instrumentType
-                    ? instrument.instrument_type === instrumentType
-                    : instrument.instrument_type === 'FUT' ||
-                    instrument.instrument_type === 'CE' ||
-                    instrument.instrument_type === 'PE';
-
-                const searchMatch = search
-                    ? instrument.tradingsymbol && instrument.tradingsymbol.includes(search)
-                    : true;
-
-                const strikeMatch = strikePrice
-                    ? (instrument.instrument_type !== 'FUT' && instrument.strike === strikePrice)
-                    : true;
-
-                const expiryMatch = expiry
-                    ? instrument.expiry && moment(instrument.expiry).format('YYYY-MM-DD') === expiry
-                    : true;
-
-                return typeMatch && searchMatch && strikeMatch && expiryMatch;
-            })
-            .sort((a, b) => {
-                const dateA = new Date(a.expiry);
-                const dateB = new Date(b.expiry);
-                if (dateA - dateB !== 0) return dateA - dateB;
-                if (a.instrument_type !== 'FUT' && b.instrument_type !== 'FUT') {
-                    return a.strike - b.strike;
-                }
-                return 0;
-            });
-
-        const paginatedInstruments = sortedInstruments.slice(startIndex, endIndex);
-
-        res.json({
-            success: true,
-            data: paginatedInstruments,
-            total: sortedInstruments.length,
-            page: page,
-            pageSize: pageSize,
-            totalPages: Math.ceil(sortedInstruments.length / pageSize)
-        });
-    } catch (error) {
-        console.error('Error fetching instruments:', error);
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
-    }
-};
 
 // Get account information
 const getAccount = async (req, res) => {
@@ -518,16 +434,72 @@ const getOrderById = async (req, res) => {
     }
 };
 
+// Refresh Zerodha Instruments
+const refreshZerodhaInstruments = async (req, res) => {
+    try {
+        const url = 'https://api.kite.trade/instruments';
+        const response = await axios.get(url, {
+            responseType: 'stream',
+            headers: {
+                'X-Kite-Version': '3',
+                'Authorization': `token ${process.env.ZERODHA_API_KEY}:${process.env.ZERODHA_ACCESS_TOKEN}`
+            }
+        });
+
+        // Save to a temp file
+        const tempFile = './instruments.csv';
+        const writer = fs.createWriteStream(tempFile);
+        response.data.pipe(writer);
+
+        await new Promise((resolve, reject) => {
+            writer.on('finish', resolve);
+            writer.on('error', reject);
+        });
+
+        // Parse CSV and store in DB
+        const parser = fs.createReadStream(tempFile).pipe(csv.parse({ columns: true }));
+        let count = 0;
+        for await (const record of parser) {
+            await db.pool.query(
+                `REPLACE INTO zerodhainstruments 
+                (exchange, tradingsymbol, instrument_token, exchange_token, name, last_price, expiry, strike, tick_size, lot_size, instrument_type, segment)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                    record.exchange,
+                    record.tradingsymbol,
+                    record.instrument_token,
+                    record.exchange_token,
+                    record.name,
+                    record.last_price,
+                    record.expiry || null,
+                    record.strike,
+                    record.tick_size,
+                    record.lot_size,
+                    record.instrument_type,
+                    record.segment
+                ]
+            );
+            count++;
+        }
+
+        fs.unlinkSync(tempFile); // Clean up
+        res.json({ success: true, message: `Instrument list refreshed! Total records: ${count}` });
+    } catch (err) {
+        console.error('Failed to update instruments:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+};
+
 module.exports = {
     getPositions,
     getHoldings,
     getLoginUrl,
     handleLogin,
     getOrders,
-    getInstruments,
     getAccount,
     placeOrder,
     cancelOrder,
     modifyOrder,
-    getOrderById
+    getOrderById,
+    refreshZerodhaInstruments
 }; 
