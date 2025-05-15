@@ -91,17 +91,41 @@ exports.subscribe = async (req, res) => {
     if (!Array.isArray(tokens) || tokens.length === 0) {
         return res.status(400).json({ error: 'tokens (array) required' });
     }
-    initTicker();
-    for (const token of tokens) {
-        subscribedTokens.add(token);
-        await db.pool.query(
-            'INSERT IGNORE INTO zerodha_subscribed_tokens (instrument_token) VALUES (?)',
-            [token]
-        );
+
+    // Check if we have a valid access token
+    if (!accessToken) {
+        return res.status(401).json({ error: 'No access token available. Please login again.' });
     }
-    ticker.subscribe(tokens);
-    ticker.setMode(ticker.modeFull, tokens);
-    res.json({ success: true, subscribed: Array.from(subscribedTokens) });
+
+    try {
+        // Initialize ticker if not already initialized
+        if (!ticker) {
+            const newTicker = initTicker();
+            if (!newTicker) {
+                return res.status(500).json({ error: 'Failed to initialize WebSocket connection' });
+            }
+        }
+
+        // Add to database first
+        for (const token of tokens) {
+            subscribedTokens.add(token);
+            await db.pool.query(
+                'INSERT IGNORE INTO zerodha_subscribed_tokens (instrument_token) VALUES (?)',
+                [token]
+            );
+        }
+
+        // Then subscribe to WebSocket
+        if (ticker && ticker.connected) {
+            ticker.subscribe(tokens);
+            ticker.setMode(ticker.modeFull, tokens);
+        }
+
+        res.json({ success: true, subscribed: Array.from(subscribedTokens) });
+    } catch (error) {
+        console.error('Error in subscribe:', error);
+        res.status(500).json({ error: 'Failed to subscribe tokens' });
+    }
 };
 
 // API: Unsubscribe from instrument(s)
@@ -110,16 +134,40 @@ exports.unsubscribe = async (req, res) => {
     if (!Array.isArray(tokens) || tokens.length === 0) {
         return res.status(400).json({ error: 'tokens (array) required' });
     }
-    initTicker();
-    for (const token of tokens) {
-        subscribedTokens.delete(token);
-        await db.pool.query(
-            'DELETE FROM zerodha_subscribed_tokens WHERE instrument_token = ?',
-            [token]
-        );
+
+    // Check if we have a valid access token
+    if (!accessToken) {
+        return res.status(401).json({ error: 'No access token available. Please login again.' });
     }
-    ticker.unsubscribe(tokens);
-    res.json({ success: true, subscribed: Array.from(subscribedTokens) });
+
+    try {
+        // Initialize ticker if not already initialized
+        if (!ticker) {
+            const newTicker = initTicker();
+            if (!newTicker) {
+                return res.status(500).json({ error: 'Failed to initialize WebSocket connection' });
+            }
+        }
+
+        // Remove from database first
+        for (const token of tokens) {
+            subscribedTokens.delete(token);
+            await db.pool.query(
+                'DELETE FROM zerodha_subscribed_tokens WHERE instrument_token = ?',
+                [token]
+            );
+        }
+
+        // Then unsubscribe from WebSocket
+        if (ticker && ticker.connected) {
+            ticker.unsubscribe(tokens);
+        }
+
+        res.json({ success: true, subscribed: Array.from(subscribedTokens) });
+    } catch (error) {
+        console.error('Error in unsubscribe:', error);
+        res.status(500).json({ error: 'Failed to unsubscribe tokens' });
+    }
 };
 
 // API: Get latest tick for an instrument
