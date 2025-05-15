@@ -10,8 +10,10 @@ const {
     cancelOrder,
     modifyOrder,
     getOrderById,
-    refreshZerodhaInstruments
+    refreshZerodhaInstruments,
+    getInstrumentsLtp
 } = require('../controllers/zerodhaController');
+const { getInstruments } = require('../controllers/localInstrumentsController');
 
 const router = express.Router();
 
@@ -43,11 +45,16 @@ router.route('/order/:order_id/cancel')
 router.route('/order/:order_id/modify')
     .post(modifyOrder);
 
-
+// Instruments routes
+router.route('/instruments')
+    .get(getInstruments);
 
 // Refresh instruments (manual trigger)
 router.route('/instruments/refresh')
     .post(refreshZerodhaInstruments);
+
+// Updated route for fetching real-time LTP with query parameters
+router.get('/instruments/ltp', getInstrumentsLtp);
 
 // Account routes
 router.route('/account')

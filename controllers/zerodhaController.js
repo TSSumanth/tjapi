@@ -9,6 +9,8 @@ const kc = new KiteConnect({
     api_key: process.env.ZERODHA_API_KEY
 });
 
+const ZERODHA_API_URL = 'https://api.kite.trade';
+
 // Get positions
 const getPositions = async (req, res) => {
     try {
@@ -490,6 +492,29 @@ const refreshZerodhaInstruments = async (req, res) => {
     }
 };
 
+// Updated controller function to fetch real-time LTP from Zerodha using KiteConnect
+const getInstrumentsLtp = async (req, res) => {
+    try {
+        const { exchange, tradingsymbol } = req.query;
+        if (!exchange || !tradingsymbol) {
+            return res.status(400).json({ error: 'Exchange and tradingsymbol are required' });
+        }
+
+        const accessToken = req.headers.authorization?.split(' ')[1];
+        if (!accessToken) {
+            return res.status(401).json({ error: 'No access token provided' });
+        }
+
+        kc.setAccessToken(accessToken);
+        const response = await kc.getLTP(`${exchange}:${tradingsymbol}`);
+
+        res.json(response);
+    } catch (error) {
+        console.error('Error fetching LTP:', error);
+        res.status(500).json({ error: 'Failed to fetch LTP' });
+    }
+};
+
 module.exports = {
     getPositions,
     getHoldings,
@@ -501,5 +526,6 @@ module.exports = {
     cancelOrder,
     modifyOrder,
     getOrderById,
-    refreshZerodhaInstruments
+    refreshZerodhaInstruments,
+    getInstrumentsLtp
 }; 
