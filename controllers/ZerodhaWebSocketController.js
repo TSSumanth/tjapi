@@ -37,11 +37,13 @@ process.on('SIGINT', cleanup);
 async function loadTokensFromDBAndSubscribe() {
     try {
         const [rows] = await db.pool.query('SELECT instrument_token FROM zerodha_subscribed_tokens');
-        const tokens = rows.map(row => row.instrument_token);
+        const tokens = rows.map(row => Number(row.instrument_token));
+        console.log('Subscribing to tokens on connect:', tokens);
         tokens.forEach(token => subscribedTokens.add(token));
         if (tokens.length > 0 && ticker) {
             ticker.subscribe(tokens);
             ticker.setMode(ticker.modeFull, tokens);
+            console.log('Subscribed  and mode set to FULL for:', tokens);
         }
     } catch (err) {
         console.error('Error loading tokens from DB:', err);
@@ -58,10 +60,16 @@ function initTicker() {
             console.error('No access token available for KiteTicker');
             return null;
         }
+         // 🔸 Enable debug logging 
+        KiteTicker.debug = true;
 
         ticker = new KiteTicker({ api_key: apiKey, access_token: accessToken });
+        
+        // Dummy handler to "activate" tick processing
+        ticker.on('tick', () => {});
 
         ticker.on('ticks', (ticks) => {
+            console.log('Received ticks:', ticks);
             try {
                 ticks.forEach(tick => {
                     latestTicks[tick.instrument_token] = tick;
@@ -100,7 +108,7 @@ function initTicker() {
         });
 
         ticker.on('noreconnect', () => {
-            console.error('KiteTicker noreconnect');
+            console.error('KiteTicker noreconnect: Will not attempt to reconnect.');
             cleanup();
         });
 
@@ -142,6 +150,7 @@ loadLatestAccessTokenFromDB();
 
 // API: Subscribe to instrument(s)
 exports.subscribe = async (req, res) => {
+    console.log('Subscribe endpoint called with tokens:', req.body.tokens);
     const { tokens } = req.body; // Array of instrument tokens
     if (!Array.isArray(tokens) || tokens.length === 0) {
         return res.status(400).json({ error: 'tokens (array) required' });
@@ -172,6 +181,7 @@ exports.subscribe = async (req, res) => {
 
         // Then subscribe to WebSocket
         if (ticker && ticker.connected) {
+            console.log('Subscribing to tokens via ticker:', tokens);
             ticker.subscribe(tokens);
             ticker.setMode(ticker.modeFull, tokens);
         }
@@ -364,5 +374,5 @@ exports.provideAccessToken = async (req, res) => {
 };
 
 exports.getAccessToken = () => accessToken;
-exports.getPublicToken = () => publicToken; 
+exports.getPublicToken = () => publicToken;
 exports.loadLatestAccessTokenFromDB = loadLatestAccessTokenFromDB;
