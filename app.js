@@ -18,6 +18,17 @@ const zerodhaWebSocketRouter = require("./routes/ZerodhaWebSocketRoutes");
 
 const app = express();
 
+// Global error handlers for robust logging
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  // Don't exit the process, just log the error
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit the process, just log the error
+});
+
 // Enable CORS for all routes
 const corsOptions = {
   origin: function (origin, callback) {
@@ -81,10 +92,27 @@ app.all("*", (req, res, next) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error('Error:', err);
+
+  // Handle specific error types
+  if (err.name === 'ValidationError') {
+    return res.status(400).json({
+      success: false,
+      error: err.message
+    });
+  }
+
+  if (err.name === 'UnauthorizedError') {
+    return res.status(401).json({
+      success: false,
+      error: 'Session expired. Please login again.'
+    });
+  }
+
+  // Default error
   res.status(500).json({
     success: false,
-    error: 'Something went wrong!'
+    error: 'Internal server error'
   });
 });
 

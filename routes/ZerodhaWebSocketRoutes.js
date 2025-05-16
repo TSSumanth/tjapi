@@ -16,5 +16,7 @@ router.get('/subscriptions', ZerodhaWebSocketController.getSubscriptions);
 router.get('/status', ZerodhaWebSocketController.getStatus);
 // Set access token
 router.post('/set-access-token', ZerodhaWebSocketController.setAccessToken);
+// Provide access token from frontend if backend is missing it
+router.post('/provide-access-token', ZerodhaWebSocketController.provideAccessToken);
 
 module.exports = router; 
