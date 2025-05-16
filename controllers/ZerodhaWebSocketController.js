@@ -5,7 +5,7 @@ const db = require('../db');
 const apiKey = process.env.ZERODHA_API_KEY;
 let accessToken = process.env.ZERODHA_ACCESS_TOKEN; // Should be refreshed if expired
 let publicToken = process.env.ZERODHA_PUBLIC_TOKEN; // Should be refreshed if expired
-
+let isManuallyDisconnected = false;
 // In-memory store for latest ticks and subscriptions
 const latestTicks = {}; // { instrument_token: tick }
 const subscribedTokens = new Set();
@@ -16,23 +16,36 @@ let reconnectTimer = null;
 
 // Cleanup function to properly dispose resources
 function cleanup() {
-    if (ticker) {
-        try {
-            ticker.disconnect();
-            ticker = null;
-        } catch (err) {
-            console.error('Error during ticker cleanup:', err);
+    try {
+        isManuallyDisconnected = true;
+
+        if (reconnectTimer) {
+            clearTimeout(reconnectTimer);
+            reconnectTimer = null;
         }
-    }
-    if (reconnectTimer) {
-        clearTimeout(reconnectTimer);
-        reconnectTimer = null;
+
+        if (ticker) {
+            try {
+                if (ticker.connected) {
+                    ticker.disconnect(); // safe even if already disconnected
+                    console.log('Ticker disconnected.');
+                }
+            } catch (err) {
+                console.error('Error during ticker.disconnect():', err);
+            }
+            ticker = null; // avoid reusing stale ticker
+        }
+
+        console.log('Cleanup completed.');
+    } catch (err) {
+        console.error('Error during cleanup():', err);
     }
 }
 
 // Handle process termination
 process.on('SIGTERM', cleanup);
 process.on('SIGINT', cleanup);
+
 
 async function loadTokensFromDBAndSubscribe() {
     try {
@@ -51,6 +64,7 @@ async function loadTokensFromDBAndSubscribe() {
 }
 
 function initTicker() {
+    isManuallyDisconnected = false;
     try {
         if (ticker) {
             cleanup();
@@ -60,16 +74,13 @@ function initTicker() {
             console.error('No access token available for KiteTicker');
             return null;
         }
-         // 🔸 Enable debug logging 
+        // 🔸 Enable debug logging 
         KiteTicker.debug = true;
 
-        ticker = new KiteTicker({ api_key: apiKey, access_token: accessToken });
-        
-        // Dummy handler to "activate" tick processing
-        ticker.on('tick', () => {});
+        ticker = new KiteTicker({ api_key: apiKey, access_token: accessToken, debug: true, reconnect: false });
 
         ticker.on('ticks', (ticks) => {
-            console.log('Received ticks:', ticks);
+            // console.log('Received ticks:', ticks); 
             try {
                 ticks.forEach(tick => {
                     latestTicks[tick.instrument_token] = tick;
@@ -90,13 +101,29 @@ function initTicker() {
 
         ticker.on('disconnect', () => {
             console.warn('KiteTicker disconnected');
-            if (reconnectTimer) {
-                clearTimeout(reconnectTimer);
-            }
+            if (isManuallyDisconnected) {
+                console.log('KiteTicker disconnected manually');
+                return
+            };
+
+            if (reconnectTimer) clearTimeout(reconnectTimer);
             reconnectTimer = setTimeout(() => {
                 console.log('Attempting to reconnect KiteTicker...');
                 initTicker();
             }, 5000);
+        });
+
+        ticker.on('noreconnect', () => {
+            try {
+                console.error('KiteTicker noreconnect: Will not attempt to reconnect.');
+                if (!isManuallyDisconnected) {
+                    console.log('KiteTicker noreconnect: Cleaning up...');
+                    cleanup(); // clean existing ticker/timer state
+                    console.log('Cleanup done after noreconnect.');
+                }
+            } catch (err) {
+                console.error('Error handling noreconnect:', err);
+            }
         });
 
         ticker.on('error', (err) => {
@@ -105,11 +132,6 @@ function initTicker() {
                 console.error('Access token may be invalid or expired');
                 cleanup();
             }
-        });
-
-        ticker.on('noreconnect', () => {
-            console.error('KiteTicker noreconnect: Will not attempt to reconnect.');
-            cleanup();
         });
 
         ticker.on('reconnect', (reconnectAttempt, reconnectDelay) => {
@@ -152,8 +174,18 @@ loadLatestAccessTokenFromDB();
 exports.subscribe = async (req, res) => {
     console.log('Subscribe endpoint called with tokens:', req.body.tokens);
     const { tokens } = req.body; // Array of instrument tokens
-    if (!Array.isArray(tokens) || tokens.length === 0) {
+    if (!Array.isArray(tokens)) {
         return res.status(400).json({ error: 'tokens (array) required' });
+    }
+    if (tokens.length === 0) {
+        // Just initialize ticker if not already started, and return status
+        if (!ticker) {
+            const newTicker = initTicker();
+            if (!newTicker) {
+                return res.status(500).json({ error: 'Failed to initialize WebSocket connection' });
+            }
+        }
+        return res.json({ success: true, message: 'Ticker initialized (no tokens subscribed)' });
     }
 
     // Check if we have a valid access token
@@ -227,9 +259,7 @@ exports.unsubscribe = async (req, res) => {
         }
 
         // Then unsubscribe from WebSocket
-        if (ticker && ticker.connected) {
-            ticker.unsubscribe(tokens);
-        }
+        safeUnsubscribe(tokens);
 
         res.json({ success: true, subscribed: Array.from(subscribedTokens) });
     } catch (error) {
@@ -272,14 +302,21 @@ exports.getSubscriptions = async (req, res) => {
         // Add latest tick info
         const data = rows.map(row => {
             const tick = latestTicks[row.instrument_token];
-            console.log(tick);
+            console.log("Getting latest tick: " + JSON.stringify(tick));
             return {
                 instrument_token: row.instrument_token,
                 tradingsymbol: row.tradingsymbol,
                 name: row.name,
                 exchange: row.exchange,
                 ltp: tick ? tick.last_price : null,
-                tick_time: tick ? tick.timestamp : null
+                tick_time: tick ? tick.last_trade_time : null,
+                tick_last_traded_quantity: tick ? tick.last_traded_quantity : null,
+                tick_current_bid_price: tick ? tick.depth.buy[0].price : null,
+                tick_current_ask_price: tick ? tick.depth.sell[0].price : null,
+                tick_current_bid_quantity: tick ? tick.depth.buy[0].quantity : null,
+                tick_current_ask_quantity: tick ? tick.depth.sell[0].quantity : null,
+                tick_current_bid_volume: tick ? tick.depth.buy[0].volume : null,
+                tick_current_ask_volume: tick ? tick.depth.sell[0].volume : null,
             };
         });
         res.json({ success: true, data });
@@ -376,3 +413,24 @@ exports.provideAccessToken = async (req, res) => {
 exports.getAccessToken = () => accessToken;
 exports.getPublicToken = () => publicToken;
 exports.loadLatestAccessTokenFromDB = loadLatestAccessTokenFromDB;
+
+function safeUnsubscribe(tokens) {
+    if (ticker && ticker.connected) {
+        try {
+            ticker.unsubscribe(tokens);
+        } catch (err) {
+            console.error('Error in safeUnsubscribe:', err);
+        }
+    }
+}
+
+exports.disconnect = (req, res) => {
+    try {
+        isManuallyDisconnected = true;
+        cleanup();
+        res.json({ success: true, message: 'WebSocket disconnected' });
+    } catch (err) {
+        console.error('Manual disconnect failed:', err);
+        res.status(500).json({ success: false, error: 'Failed to disconnect WebSocket' });
+    }
+};

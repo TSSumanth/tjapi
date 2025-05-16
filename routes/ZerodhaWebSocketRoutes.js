@@ -18,5 +18,7 @@ router.get('/status', ZerodhaWebSocketController.getStatus);
 router.post('/set-access-token', ZerodhaWebSocketController.setAccessToken);
 // Provide access token from frontend if backend is missing it
 router.post('/provide-access-token', ZerodhaWebSocketController.provideAccessToken);
+// Disconnect the WebSocket
+router.post('/disconnect', ZerodhaWebSocketController.disconnect);
 
 module.exports = router; 
