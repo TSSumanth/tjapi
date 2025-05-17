@@ -4,7 +4,8 @@ const axios = require('axios');
 const fs = require('fs');
 const csv = require('csv-parse');
 const db = require('../db'); // Use shared DB connection
-const { getAccessToken, getPublicToken, loadLatestAccessTokenFromDB } = require('./ZerodhaWebSocketController');
+const { getAccessToken } = require('./ZerodhaWebSocketController');
+// let accessToken = getAccessToken();
 
 const kc = new KiteConnect({
     api_key: process.env.ZERODHA_API_KEY
@@ -236,6 +237,24 @@ const getOrders = async (req, res) => {
     }
 };
 
+// Get mutual fund holdings
+const getMutualFundHoldings = async () => {
+    try {
+        const mfResponse = await axios.get('https://api.kite.trade/mf/holdings', {
+            headers: {
+                'X-Kite-Version': '3',
+                'Authorization': `token ${process.env.ZERODHA_API_KEY}:${getAccessToken()}`
+            }
+        });
+        return mfResponse.data;
+    } catch (error) {
+        if (error.status === 401 || error.status === 403 || (error.message && error.message.toLowerCase().includes('token'))) {
+            throw new Error('Session expired. Please login again.');
+        }
+        console.error('Error fetching mutual fund holdings:', error.message);
+        throw error;
+    }
+};
 
 // Get account information
 const getAccount = async (req, res) => {
@@ -263,19 +282,19 @@ const getAccount = async (req, res) => {
                     equity: formattedMargins
                 },
                 mutualFunds: []
+            },
+            rawData: {
+                profile: profile,
+                margins: margins
             }
         };
 
         try {
-            const mfResponse = await axios.get('https://api.kite.trade/mf/holdings', {
-                headers: {
-                    'X-Kite-Version': '3',
-                    'Authorization': `token ${process.env.ZERODHA_API_KEY}:${getAccessToken()}`
-                }
-            });
+            const mfResponse = await getMutualFundHoldings();
+            response.rawData.mutualFunds = mfResponse.data;
 
-            if (mfResponse.data && mfResponse.data.data && Array.isArray(mfResponse.data.data)) {
-                response.data.mutualFunds = mfResponse.data.data.map(holding => {
+            if (mfResponse && mfResponse.data && Array.isArray(mfResponse.data)) {
+                response.data.mutualFunds = mfResponse.data.map(holding => {
                     const currentNav = parseFloat(holding.last_price || holding.current_nav || 0);
                     const avgCost = parseFloat(holding.average_price || holding.purchase_price || 0);
                     const units = parseFloat(holding.quantity || holding.units || 0);
@@ -294,8 +313,8 @@ const getAccount = async (req, res) => {
                 });
             }
         } catch (mfError) {
-            if (mfError.status === 401 || mfError.status === 403 || (mfError.message && mfError.message.toLowerCase().includes('token'))) {
-                return res.status(401).json({ success: false, error: 'Session expired. Please login again.' });
+            if (mfError.message.includes('Session expired')) {
+                return res.status(401).json({ success: false, error: mfError.message });
             }
             console.error('Error fetching mutual fund holdings:', mfError.message);
         }
@@ -305,11 +324,8 @@ const getAccount = async (req, res) => {
         if (error.status === 401 || error.status === 403 || (error.message && error.message.toLowerCase().includes('token'))) {
             return res.status(401).json({ success: false, error: 'Session expired. Please login again.' });
         }
-        console.error('Error in account endpoint:', error);
-        res.status(500).json({
-            success: false,
-            error: error.message || 'Failed to fetch account information'
-        });
+        console.error('Error fetching account info:', error);
+        res.status(500).json({ success: false, error: error.message });
     }
 };
 
