@@ -1,10 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const zerodhaAccountController = require('../controllers/zerodhaAccountController');
-const { authenticateToken } = require('../middleware/auth');
 
-// Apply authentication middleware to all routes
-router.use(authenticateToken);
 
 // Account Summary Routes
 router.get('/summary', zerodhaAccountController.getAccountSummary);
