@@ -329,35 +329,51 @@ const getAccount = async (req, res) => {
     }
 };
 
-// Place an order
-const placeOrder = async (req, res) => {
+// Place a regular order
+const placeRegularOrder = async (req, res) => {
     try {
         if (!ensureAccessToken(res)) return;
 
         const {
             tradingsymbol,
-            exchange,
             transaction_type,
             quantity,
+            price,
             product,
             order_type,
-            price,
-            trigger_price
+            validity,
+            exchange,
+            trigger_price,
+            squareoff,
+            stoploss,
+            trailing_stoploss
         } = req.body;
 
-        const order = await kc.placeOrder('regular', {
+        if (!tradingsymbol || !transaction_type || !quantity || !product || !order_type || !validity || !exchange) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields'
+            });
+        }
+
+        const response = await kc.placeOrder('regular', {
             tradingsymbol,
-            exchange,
             transaction_type,
             quantity,
+            price,
             product,
             order_type,
-            price,
-            trigger_price
+            validity,
+            exchange,
+            trigger_price,
+            squareoff,
+            stoploss,
+            trailing_stoploss
         });
+
         res.json({
             success: true,
-            order_id: order.order_id
+            order_id: response.order_id
         });
     } catch (error) {
         if (error.status === 401 || error.status === 403 || (error.message && error.message.toLowerCase().includes('token'))) {
@@ -371,8 +387,8 @@ const placeOrder = async (req, res) => {
     }
 };
 
-// Cancel an order
-const cancelOrder = async (req, res) => {
+// Cancel a regular order
+const cancelRegularOrder = async (req, res) => {
     try {
         if (!ensureAccessToken(res)) return;
 
@@ -402,8 +418,8 @@ const cancelOrder = async (req, res) => {
     }
 };
 
-// Modify an order
-const modifyOrder = async (req, res) => {
+// Modify a regular order
+const modifyRegularOrder = async (req, res) => {
     try {
         if (!ensureAccessToken(res)) return;
 
@@ -550,9 +566,9 @@ module.exports = {
     handleLogin,
     getOrders,
     getAccount,
-    placeOrder,
-    cancelOrder,
-    modifyOrder,
+    placeRegularOrder,
+    cancelRegularOrder,
+    modifyRegularOrder,
     getOrderById,
     refreshZerodhaInstruments,
     getInstrumentsLtp
