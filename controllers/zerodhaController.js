@@ -559,6 +559,137 @@ const getInstrumentsLtp = async (req, res) => {
     }
 };
 
+// Place an AMO order
+const placeAmoOrder = async (req, res) => {
+    try {
+        if (!ensureAccessToken(res)) return;
+
+        const {
+            tradingsymbol,
+            transaction_type,
+            quantity,
+            price,
+            product,
+            order_type,
+            validity,
+            exchange,
+            trigger_price,
+            squareoff,
+            stoploss,
+            trailing_stoploss
+        } = req.body;
+
+        if (!tradingsymbol || !transaction_type || !quantity || !product || !order_type || !validity || !exchange) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields'
+            });
+        }
+
+        const response = await kc.placeOrder('amo', {
+            tradingsymbol,
+            transaction_type,
+            quantity,
+            price,
+            product,
+            order_type,
+            validity,
+            exchange,
+            trigger_price,
+            squareoff,
+            stoploss,
+            trailing_stoploss
+        });
+
+        res.json({
+            success: true,
+            order_id: response.order_id
+        });
+    } catch (error) {
+        if (error.status === 401 || error.status === 403 || (error.message && error.message.toLowerCase().includes('token'))) {
+            return res.status(401).json({ success: false, error: 'Session expired. Please login again.' });
+        }
+        console.error('Error placing AMO order:', error);
+        res.status(400).json({
+            success: false,
+            error: error.message || 'Failed to place AMO order'
+        });
+    }
+};
+
+// Cancel an AMO order
+const cancelAmoOrder = async (req, res) => {
+    try {
+        if (!ensureAccessToken(res)) return;
+
+        const { order_id } = req.params;
+        if (!order_id) {
+            return res.status(400).json({
+                success: false,
+                error: 'Order ID is required'
+            });
+        }
+
+        const response = await kc.cancelOrder('amo', order_id);
+
+        res.json({
+            success: true,
+            order_id: response.order_id
+        });
+    } catch (error) {
+        if (error.status === 401 || error.status === 403 || (error.message && error.message.toLowerCase().includes('token'))) {
+            return res.status(401).json({ success: false, error: 'Session expired. Please login again.' });
+        }
+        console.error('Error canceling AMO order:', error);
+        res.status(400).json({
+            success: false,
+            error: error.message || 'Failed to cancel AMO order'
+        });
+    }
+};
+
+// Modify an AMO order
+const modifyAmoOrder = async (req, res) => {
+    try {
+        if (!ensureAccessToken(res)) return;
+
+        const { order_id } = req.params;
+        const {
+            quantity,
+            price,
+            order_type,
+            trigger_price
+        } = req.body;
+
+        if (!order_id) {
+            return res.status(400).json({
+                success: false,
+                error: 'Order ID is required'
+            });
+        }
+
+        const response = await kc.modifyOrder('amo', order_id, {
+            quantity,
+            price,
+            order_type,
+            trigger_price
+        });
+        res.json({
+            success: true,
+            order_id: response.order_id
+        });
+    } catch (error) {
+        if (error.status === 401 || error.status === 403 || (error.message && error.message.toLowerCase().includes('token'))) {
+            return res.status(401).json({ success: false, error: 'Session expired. Please login again.' });
+        }
+        console.error('Error modifying AMO order:', error);
+        res.status(400).json({
+            success: false,
+            error: error.message || 'Failed to modify AMO order'
+        });
+    }
+};
+
 module.exports = {
     getPositions,
     getHoldings,
@@ -569,6 +700,9 @@ module.exports = {
     placeRegularOrder,
     cancelRegularOrder,
     modifyRegularOrder,
+    placeAmoOrder,
+    cancelAmoOrder,
+    modifyAmoOrder,
     getOrderById,
     refreshZerodhaInstruments,
     getInstrumentsLtp

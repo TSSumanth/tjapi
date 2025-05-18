@@ -9,6 +9,9 @@ const {
     placeRegularOrder,
     cancelRegularOrder,
     modifyRegularOrder,
+    placeAmoOrder,
+    cancelAmoOrder,
+    modifyAmoOrder,
     getOrderById,
     refreshZerodhaInstruments,
     getInstrumentsLtp
@@ -39,12 +42,21 @@ router.route('/orders')
 router.route('/orders/:order_id')
     .get(getOrderById);
 
+// Regular Order routes
 router.route('/orders/regular')
     .post(placeRegularOrder);
 
 router.route('/orders/regular/:order_id')
     .delete(cancelRegularOrder)
     .put(modifyRegularOrder);
+
+// AMO Order routes
+router.route('/orders/amo')
+    .post(placeAmoOrder);
+
+router.route('/orders/amo/:order_id')
+    .delete(cancelAmoOrder)
+    .put(modifyAmoOrder);
 
 // Instruments routes
 router.route('/instruments')
