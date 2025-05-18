@@ -221,7 +221,8 @@ const getOrders = async (req, res) => {
             ...order,
             average_price: parseFloat(order.average_price),
             price: parseFloat(order.price),
-            trigger_price: parseFloat(order.trigger_price)
+            trigger_price: parseFloat(order.trigger_price),
+            is_amo: order.status === 'AMO REQ RECEIVED' || order.status === 'MODIFY AMO REQ RECEIVED' // Mark AMO and Modified AMO orders
         })) : [];
 
         res.json({
