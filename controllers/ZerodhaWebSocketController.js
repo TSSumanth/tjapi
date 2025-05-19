@@ -209,15 +209,17 @@ exports.subscribe = async (req, res) => {
                 'INSERT IGNORE INTO zerodha_subscribed_tokens (instrument_token) VALUES (?)',
                 [token]
             );
+            loadTokensFromDBAndSubscribe()
+            // cleanup()
+            initTicker();
         }
 
         // Then subscribe to WebSocket
-        if (ticker && ticker.connected) {
-            console.log('Subscribing to tokens via ticker:', tokens);
-            ticker.subscribe(tokens);
-            ticker.setMode(ticker.modeFull, tokens);
-        }
-
+        // if (ticker && ticker.connected) {
+        //     console.log('Subscribing to tokens via ticker:', tokens);
+        //     ticker.subscribe(tokens);
+        //     ticker.setMode(ticker.modeFull, tokens);
+        // }
         res.json({ success: true, subscribed: Array.from(subscribedTokens) });
     } catch (error) {
         if (error.status === 401 || error.status === 403 || (error.message && error.message.toLowerCase().includes('token'))) {
