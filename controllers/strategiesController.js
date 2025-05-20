@@ -43,12 +43,20 @@ exports.createStrategy = async (req, res) => {
     if (option_trades === undefined || option_trades === null) option_trades = JSON.stringify([]);
     if (realized_pl === undefined || realized_pl === null) realized_pl = 0.00;
     if (unrealized_pl === undefined || unrealized_pl === null) unrealized_pl = 0.00;
-    if (symbol_ltp === undefined || symbol_ltp === null) symbol_ltp = 0.00;
+    if (symbol_ltp === undefined || symbol_ltp === null || symbol_ltp === '') symbol_ltp = 0.00;
+
+    // Format the date for MySQL
+    const formattedDate = moment(created_at).format('YYYY-MM-DD HH:mm:ss');
+
+    // Ensure numeric values are properly formatted
+    const formattedSymbolLtp = parseFloat(symbol_ltp).toFixed(2);
+    const formattedRealizedPl = parseFloat(realized_pl).toFixed(2);
+    const formattedUnrealizedPl = parseFloat(unrealized_pl).toFixed(2);
 
     // Insert new strategy
     const [result] = await db.pool.query(
       "INSERT INTO strategies (name, description, status, stock_trades, option_trades, created_at, symbol, symbol_ltp, realized_pl, unrealized_pl) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      [name.toUpperCase(), description, status.toUpperCase(), stock_trades, option_trades, created_at, symbol, symbol_ltp, realized_pl, unrealized_pl]
+      [name.toUpperCase(), description, status.toUpperCase(), stock_trades, option_trades, formattedDate, symbol, formattedSymbolLtp, formattedRealizedPl, formattedUnrealizedPl]
     );
 
     if (result.affectedRows === 1) {
