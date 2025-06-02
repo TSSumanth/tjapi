@@ -29,8 +29,10 @@ exports.createAlgoStrategy = async (req, res) => {
         const [strategy] = await db.pool.query('SELECT * FROM algo_strategies WHERE strategyid = ?', [result.insertId]);
         // Parse JSON fields before sending
         if (strategy[0]) {
-            strategy[0].instruments_details = JSON.parse(strategy[0].instruments_details);
-            if (strategy[0].automated_order_ids) {
+            strategy[0].instruments_details = typeof strategy[0].instruments_details === 'string'
+                ? JSON.parse(strategy[0].instruments_details)
+                : strategy[0].instruments_details;
+            if (strategy[0].automated_order_ids && typeof strategy[0].automated_order_ids === 'string') {
                 strategy[0].automated_order_ids = JSON.parse(strategy[0].automated_order_ids);
             }
         }
@@ -55,8 +57,10 @@ exports.getAlgoStrategies = async (req, res) => {
         const [strategies] = await db.pool.query(query, values);
         // Parse JSON fields
         strategies.forEach(s => {
-            s.instruments_details = JSON.parse(s.instruments_details);
-            if (s.automated_order_ids) {
+            if (typeof s.instruments_details === 'string') {
+                s.instruments_details = JSON.parse(s.instruments_details);
+            }
+            if (s.automated_order_ids && typeof s.automated_order_ids === 'string') {
                 s.automated_order_ids = JSON.parse(s.automated_order_ids);
             }
         });
@@ -76,8 +80,10 @@ exports.getAlgoStrategyById = async (req, res) => {
             return res.status(404).json({ error: 'Strategy not found' });
         }
         // Parse JSON fields
-        strategies[0].instruments_details = JSON.parse(strategies[0].instruments_details);
-        if (strategies[0].automated_order_ids) {
+        strategies[0].instruments_details = typeof strategies[0].instruments_details === 'string'
+            ? JSON.parse(strategies[0].instruments_details)
+            : strategies[0].instruments_details;
+        if (strategies[0].automated_order_ids && typeof strategies[0].automated_order_ids === 'string') {
             strategies[0].automated_order_ids = JSON.parse(strategies[0].automated_order_ids);
         }
         res.status(200).json(strategies[0]);
@@ -115,8 +121,10 @@ exports.updateAlgoStrategy = async (req, res) => {
         await db.pool.query(`UPDATE algo_strategies SET ${updates.join(', ')} WHERE strategyid = ?`, values);
         const [strategies] = await db.pool.query('SELECT * FROM algo_strategies WHERE strategyid = ?', [id]);
         if (strategies[0]) {
-            strategies[0].instruments_details = JSON.parse(strategies[0].instruments_details);
-            if (strategies[0].automated_order_ids) {
+            strategies[0].instruments_details = typeof strategies[0].instruments_details === 'string'
+                ? JSON.parse(strategies[0].instruments_details)
+                : strategies[0].instruments_details;
+            if (strategies[0].automated_order_ids && typeof strategies[0].automated_order_ids === 'string') {
                 strategies[0].automated_order_ids = JSON.parse(strategies[0].automated_order_ids);
             }
         }
