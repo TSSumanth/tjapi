@@ -25,9 +25,14 @@ exports.createAutomatedOrder = async (req, res) => {
         }
 
         const [result] = await db.pool.query(
-            `INSERT INTO automated_orders (strategy_id, instrument_token, trading_symbol, exchange, product, quantity, transaction_type, validity, order_type, price, status, tags, notes, zerodha_orderid)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [strategy_id, instrument_token, trading_symbol, exchange, product, quantity, transaction_type, validity, order_type, price, status, tags, notes, zerodha_orderid]
+            `INSERT INTO automated_orders (
+                strategy_id, instrument_token, trading_symbol, exchange, product, quantity,
+                transaction_type, validity, order_type, price, status, tags, notes, zerodha_orderid
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                strategy_id, instrument_token, trading_symbol, exchange, product, quantity,
+                transaction_type, validity, order_type, price, status, tags, notes, zerodha_orderid
+            ]
         );
         const [order] = await db.pool.query('SELECT * FROM automated_orders WHERE id = ?', [result.insertId]);
         res.status(201).json(order[0]);
