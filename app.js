@@ -18,6 +18,7 @@ const zerodhaWebSocketRouter = require("./routes/ZerodhaWebSocketRoutes");
 const zerodhaAccountRouter = require("./routes/zerodhaAccount");
 const automatedOrdersRouter = require('./routes/automatedOrdersRoutes');
 const algoStrategiesRouter = require('./routes/algoStrategiesRoutes');
+const algoStrategyNotesRoutes = require('./routes/algoStrategyNotesRoutes');
 
 const app = express();
 
@@ -87,6 +88,7 @@ app.use("/api/holidays", holidaysRouter);
 app.use("/api/zerodha-account", zerodhaAccountRouter);
 app.use("/api/automated-orders", automatedOrdersRouter);
 app.use("/api/algo-strategies", algoStrategiesRouter);
+app.use('/api/algo-strategies', algoStrategyNotesRoutes);
 
 //Use this only at the end, if used at the beginning no matter what route is called by the client the response on the below method is only displayed
 app.all("*", (req, res, next) => {

@@ -8,7 +8,8 @@ exports.createAlgoStrategy = async (req, res) => {
             underlying_instrument,
             automated_order_ids,
             status,
-            strategy_type
+            strategy_type,
+            expected_return
         } = req.body;
 
         if (!instruments_details || !underlying_instrument || !status || !strategy_type) {
@@ -16,14 +17,15 @@ exports.createAlgoStrategy = async (req, res) => {
         }
 
         const [result] = await db.pool.query(
-            `INSERT INTO algo_strategies (instruments_details, underlying_instrument, automated_order_ids, status, strategy_type)
-            VALUES (?, ?, ?, ?, ?)`,
+            `INSERT INTO algo_strategies (instruments_details, underlying_instrument, automated_order_ids, status, strategy_type, expected_return)
+            VALUES (?, ?, ?, ?, ?, ?)`,
             [
                 JSON.stringify(instruments_details),
                 underlying_instrument,
                 automated_order_ids ? JSON.stringify(automated_order_ids) : null,
                 status,
-                strategy_type
+                strategy_type,
+                expected_return ?? 0
             ]
         );
         const [strategy] = await db.pool.query('SELECT * FROM algo_strategies WHERE strategyid = ?', [result.insertId]);
@@ -99,7 +101,7 @@ exports.updateAlgoStrategy = async (req, res) => {
         const { id } = req.params;
         const fields = req.body;
         const allowedFields = [
-            'instruments_details', 'underlying_instrument', 'automated_order_ids', 'status', 'strategy_type'
+            'instruments_details', 'underlying_instrument', 'automated_order_ids', 'status', 'strategy_type', 'expected_return'
         ];
         const updates = [];
         const values = [];
