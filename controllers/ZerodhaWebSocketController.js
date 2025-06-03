@@ -313,17 +313,17 @@ exports.getSubscriptions = async (req, res) => {
                 ltp: tick ? tick.last_price : null,
                 tick_time: tick ? tick.last_trade_time : null,
                 tick_last_traded_quantity: tick ? tick.last_traded_quantity : null,
-                tick_current_bid_price: tick ? tick.depth.buy[0].price : null,
-                tick_current_ask_price: tick ? tick.depth.sell[0].price : null,
-                tick_current_bid_quantity: tick ? tick.depth.buy[0].quantity : null,
-                tick_current_ask_quantity: tick ? tick.depth.sell[0].quantity : null,
-                tick_current_bid_volume: tick ? tick.depth.buy[0].volume : null,
-                tick_current_ask_volume: tick ? tick.depth.sell[0].volume : null,
+                tick_current_bid_price: tick ? tick.depth?.buy[0]?.price : null,
+                tick_current_ask_price: tick ? tick.depth?.sell[0]?.price : null,
+                tick_current_bid_quantity: tick ? tick.depth?.buy[0]?.quantity : null,
+                tick_current_ask_quantity: tick ? tick.depth?.sell[0]?.quantity : null,
+                tick_current_bid_volume: tick ? tick.depth?.buy[0]?.volume : null,
+                tick_current_ask_volume: tick ? tick.depth?.sell[0]?.volume : null,
             };
         });
         res.json({ success: true, data });
     } catch (err) {
-        res.status(500).json({ success: false, error: 'Failed to fetch subscriptions' });
+        res.status(500).json({ success: false, error: 'Failed to fetch subscriptions '+ err });
     }
 };
 
