@@ -22,7 +22,10 @@ exports.createNote = async (req, res) => {
 // Get all notes for a strategy
 exports.getNotesByStrategyId = async (req, res) => {
     try {
-        const { strategyid } = req.params;
+        const { strategyid } = req.query;
+        if (!strategyid) {
+            return res.status(400).json({ error: 'strategyid is required' });
+        }
         const [notes] = await db.pool.query(
             'SELECT * FROM algo_strategy_notes WHERE strategyid = ? ORDER BY timestamp DESC',
             [strategyid]
