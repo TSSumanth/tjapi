@@ -76,9 +76,9 @@ exports.createTargetAchievement = async (req, res) => {
             // Create new achievement record
             const [result] = await db.pool.query(
                 `INSERT INTO strategy_target_achievements 
-                 (strategy_id, target_value, has_achieved) 
-                 VALUES (?, ?, TRUE)`,
-                [strategy_id, target_value]
+                 (strategy_id, target_value, max_loss_value, has_achieved) 
+                 VALUES (?, ?, ?, FALSE)`,
+                [strategy_id, target_value, req.body.max_loss_value || null]
             );
 
             const [newAchievement] = await db.pool.query(
@@ -237,6 +237,154 @@ exports.updateTargetValue = async (req, res) => {
         });
     } catch (error) {
         console.error('Error updating target value:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Internal server error' 
+        });
+    }
+};
+
+// Check if max loss has been triggered for a strategy
+exports.checkMaxLossTriggered = async (req, res) => {
+    try {
+        const { strategy_id, max_loss_value } = req.query;
+        
+        if (!strategy_id || !max_loss_value) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'strategy_id and max_loss_value are required' 
+            });
+        }
+
+        const [rows] = await db.pool.query(
+            `SELECT * FROM strategy_target_achievements 
+             WHERE strategy_id = ? AND max_loss_value = ? AND max_loss_triggered = TRUE
+             ORDER BY updated_at DESC LIMIT 1`,
+            [strategy_id, max_loss_value]
+        );
+
+        res.json({
+            success: true,
+            data: {
+                hasMaxLossTriggered: rows.length > 0,
+                maxLossRecord: rows[0] || null
+            }
+        });
+    } catch (error) {
+        console.error('Error checking max loss triggered:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Internal server error' 
+        });
+    }
+};
+
+// Update max loss value for a strategy
+exports.updateMaxLossValue = async (req, res) => {
+    try {
+        const { strategy_id, max_loss_value } = req.body;
+        
+        if (!strategy_id || !max_loss_value) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'strategy_id and max_loss_value are required' 
+            });
+        }
+
+        // Update existing max loss value
+        const [result] = await db.pool.query(
+            `UPDATE strategy_target_achievements 
+             SET max_loss_value = ?, max_loss_triggered = FALSE, updated_at = CURRENT_TIMESTAMP
+             WHERE strategy_id = ?`,
+            [max_loss_value, strategy_id]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'No target achievement found to update' 
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Max loss value updated successfully'
+        });
+    } catch (error) {
+        console.error('Error updating max loss value:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Internal server error' 
+        });
+    }
+};
+
+// Mark max loss as triggered
+exports.triggerMaxLoss = async (req, res) => {
+    try {
+        const { strategy_id, max_loss_value } = req.body;
+        
+        if (!strategy_id || !max_loss_value) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'strategy_id and max_loss_value are required' 
+            });
+        }
+
+        // Mark max loss as triggered
+        const [result] = await db.pool.query(
+            `UPDATE strategy_target_achievements 
+             SET max_loss_triggered = TRUE, updated_at = CURRENT_TIMESTAMP
+             WHERE strategy_id = ? AND max_loss_value = ?`,
+            [strategy_id, max_loss_value]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'No target achievement found to update' 
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Max loss marked as triggered successfully'
+        });
+    } catch (error) {
+        console.error('Error triggering max loss:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Internal server error' 
+        });
+    }
+};
+
+// Get both target and max loss values for a strategy
+exports.getStrategyTargetAndMaxLoss = async (req, res) => {
+    try {
+        const { strategy_id } = req.params;
+        
+        if (!strategy_id) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'strategy_id is required' 
+            });
+        }
+
+        const [rows] = await db.pool.query(
+            `SELECT target_value, max_loss_value, has_achieved, max_loss_triggered 
+             FROM strategy_target_achievements 
+             WHERE strategy_id = ? 
+             ORDER BY target_value DESC LIMIT 1`,
+            [strategy_id]
+        );
+
+        res.json({
+            success: true,
+            data: rows[0] || null
+        });
+    } catch (error) {
+        console.error('Error fetching strategy target and max loss:', error);
         res.status(500).json({ 
             success: false, 
             error: 'Internal server error' 

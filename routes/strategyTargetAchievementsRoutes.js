@@ -20,4 +20,16 @@ router.get('/target/:strategy_id', strategyTargetAchievementsController.getStrat
 // Get all achievements for a strategy
 router.get('/:strategy_id', strategyTargetAchievementsController.getStrategyAchievements);
 
+// Check if max loss has been triggered
+router.get('/max-loss/check', strategyTargetAchievementsController.checkMaxLossTriggered);
+
+// Update max loss value
+router.put('/max-loss/update', strategyTargetAchievementsController.updateMaxLossValue);
+
+// Mark max loss as triggered
+router.post('/max-loss/trigger', strategyTargetAchievementsController.triggerMaxLoss);
+
+// Get both target and max loss values
+router.get('/target-maxloss/:strategy_id', strategyTargetAchievementsController.getStrategyTargetAndMaxLoss);
+
 module.exports = router;
