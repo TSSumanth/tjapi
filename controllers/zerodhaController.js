@@ -4,57 +4,25 @@ const axios = require('axios');
 const fs = require('fs');
 const csv = require('csv-parse');
 const db = require('../db'); // Use shared DB connection
-const { getAccessToken } = require('./ZerodhaWebSocketController');
-// let accessToken = getAccessToken();
 
 const kc = new KiteConnect({
     api_key: process.env.ZERODHA_API_KEY
 });
 
-// Helper function to check if token is expired based on 6 AM rule
-function isTokenExpired(updatedAt) {
-    const now = moment();
-    const tokenDate = moment(updatedAt);
-    const tomorrow6AM = moment().add(1, 'day').set({ hour: 6, minute: 0, second: 0, millisecond: 0 });
-
-    // If token was created today, it's valid until 6 AM tomorrow
-    if (tokenDate.isSame(now, 'day')) {
-        return now.isAfter(tomorrow6AM);
-    }
-
-    // If token was created before today, it's expired
-    return true;
-}
-
-// Helper to check token
-async function ensureAccessToken(res) {
-    let accessToken = getAccessToken();
-    console.log('REST API initial access token:', accessToken);
-
-    // If no token in memory, try loading from DB
-    if (!accessToken) {
-        console.log('No access token in memory, trying to load from DB');
-        // Check if token is expired
-        const [rows] = await db.pool.query(
-            'SELECT accessToken, updated_at FROM zerodha_access_tokens ORDER BY updated_at DESC LIMIT 1'
-        );
-
-        if (rows.length > 0 && isTokenExpired(rows[0].updated_at)) {
-            console.log('Access token is expired');
-            res.status(401).json({ success: false, error: 'Session expired. Please login again.' });
-            return false;
-        }
-        console.log('REST API access token after DB load:', accessToken);
-    }
-
-    kc.setAccessToken(accessToken);
-    return true;
-}
+const ZERODHA_API_URL = 'https://api.kite.trade';
 
 // Get positions
 const getPositions = async (req, res) => {
     try {
-        if (!ensureAccessToken(res)) return;
+        const accessToken = req.headers.authorization?.split(' ')[1];
+        if (!accessToken) {
+            return res.status(401).json({
+                success: false,
+                error: 'No access token provided'
+            });
+        }
+
+        kc.setAccessToken(accessToken);
         const positions = await kc.getPositions();
 
         // Process positions data
@@ -77,17 +45,26 @@ const getPositions = async (req, res) => {
             data: processedPositions
         });
     } catch (error) {
-        if (error.status === 401 || error.status === 403 || (error.message && error.message.toLowerCase().includes('token'))) {
-            return res.status(401).json({ success: false, error: 'Session expired. Please login again.' });
-        }
-        res.status(500).json({ success: false, error: error.message });
+        console.error('Error fetching positions:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
     }
 };
 
 // Get holdings
 const getHoldings = async (req, res) => {
     try {
-        if (!ensureAccessToken(res)) return;
+        const accessToken = req.headers.authorization?.split(' ')[1];
+        if (!accessToken) {
+            return res.status(401).json({
+                success: false,
+                error: 'No access token provided'
+            });
+        }
+
+        kc.setAccessToken(accessToken);
         const holdings = await kc.getHoldings();
 
         // Process holdings data
@@ -102,10 +79,11 @@ const getHoldings = async (req, res) => {
             data: processedHoldings
         });
     } catch (error) {
-        if (error.status === 401 || error.status === 403 || (error.message && error.message.toLowerCase().includes('token'))) {
-            return res.status(401).json({ success: false, error: 'Session expired. Please login again.' });
-        }
-        res.status(500).json({ success: false, error: error.message });
+        console.error('Error fetching holdings:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
     }
 };
 
@@ -131,24 +109,6 @@ const handleLogin = async (req, res) => {
 
         const session = await kc.generateSession(request_token, process.env.ZERODHA_API_SECRET);
 
-        // Check if we have an existing token in DB
-        const [rows] = await db.pool.query(
-            'SELECT access_token, updated_at FROM zerodha_access_tokens ORDER BY updated_at DESC LIMIT 1'
-        );
-
-        let access_token = null;
-        if (rows.length > 0) {
-            // Check if the existing token is still valid (not expired by 6 AM rule)
-            if (!isTokenExpired(rows[0].updated_at)) {
-                access_token = rows[0].access_token;
-            }
-        }
-
-        // If no valid token found, use the new one from session
-        if (!access_token) {
-            access_token = session.access_token;
-        }
-
         // Return an HTML page that will handle the response and close the window
         const html = `
             <!DOCTYPE html>
@@ -160,7 +120,7 @@ const handleLogin = async (req, res) => {
                             const response = {
                                 type: 'ZERODHA_AUTH_SUCCESS',
                                 data: {
-                                    access_token: '${access_token}',
+                                    access_token: '${session.access_token}',
                                     public_token: '${session.public_token}'
                                 }
                             };
@@ -178,9 +138,6 @@ const handleLogin = async (req, res) => {
 
         res.send(html);
     } catch (error) {
-        if (error.status === 401 || error.status === 403 || (error.message && error.message.toLowerCase().includes('token'))) {
-            return res.status(401).json({ success: false, error: 'Session expired. Please login again.' });
-        }
         console.error('Error in login callback:', error);
         // Return an HTML page for error case
         const errorHtml = `
@@ -213,7 +170,15 @@ const handleLogin = async (req, res) => {
 // Get orders
 const getOrders = async (req, res) => {
     try {
-        if (!ensureAccessToken(res)) return;
+        const accessToken = req.headers.authorization?.split(' ')[1];
+        if (!accessToken) {
+            return res.status(401).json({
+                success: false,
+                error: 'No access token provided'
+            });
+        }
+
+        kc.setAccessToken(accessToken);
         const orders = await kc.getOrders();
 
         // Process orders data - return all orders
@@ -221,8 +186,7 @@ const getOrders = async (req, res) => {
             ...order,
             average_price: parseFloat(order.average_price),
             price: parseFloat(order.price),
-            trigger_price: parseFloat(order.trigger_price),
-            is_amo: order.status === 'AMO REQ RECEIVED' // Mark AMO orders
+            trigger_price: parseFloat(order.trigger_price)
         })) : [];
 
         res.json({
@@ -230,37 +194,29 @@ const getOrders = async (req, res) => {
             data: processedOrders
         });
     } catch (error) {
-        if (error.status === 401 || error.status === 403 || (error.message && error.message.toLowerCase().includes('token'))) {
-            return res.status(401).json({ success: false, error: 'Session expired. Please login again.' });
-        }
         console.error('Error fetching orders:', error);
-        res.status(500).json({ success: false, error: error.message });
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
     }
 };
 
-// Get mutual fund holdings
-const getMutualFundHoldings = async () => {
-    try {
-        const mfResponse = await axios.get('https://api.kite.trade/mf/holdings', {
-            headers: {
-                'X-Kite-Version': '3',
-                'Authorization': `token ${process.env.ZERODHA_API_KEY}:${getAccessToken()}`
-            }
-        });
-        return mfResponse.data;
-    } catch (error) {
-        if (error.status === 401 || error.status === 403 || (error.message && error.message.toLowerCase().includes('token'))) {
-            throw new Error('Session expired. Please login again.');
-        }
-        console.error('Error fetching mutual fund holdings:', error.message);
-        throw error;
-    }
-};
 
 // Get account information
 const getAccount = async (req, res) => {
     try {
-        if (!ensureAccessToken(res)) return;
+        const accessToken = req.headers.authorization?.split(' ')[1];
+        const publicToken = req.headers['x-zerodha-public-token'];
+
+        if (!accessToken || !publicToken) {
+            return res.status(401).json({
+                success: false,
+                error: 'Authentication tokens missing'
+            });
+        }
+
+        kc.setAccessToken(accessToken);
 
         const profile = await kc.getProfile();
         const margins = await kc.getMargins('equity');
@@ -283,19 +239,19 @@ const getAccount = async (req, res) => {
                     equity: formattedMargins
                 },
                 mutualFunds: []
-            },
-            rawData: {
-                profile: profile,
-                margins: margins
             }
         };
 
         try {
-            const mfResponse = await getMutualFundHoldings();
-            response.rawData.mutualFunds = mfResponse.data;
+            const mfResponse = await axios.get('https://api.kite.trade/mf/holdings', {
+                headers: {
+                    'X-Kite-Version': '3',
+                    'Authorization': `token ${process.env.ZERODHA_API_KEY}:${accessToken}`
+                }
+            });
 
-            if (mfResponse && mfResponse.data && Array.isArray(mfResponse.data)) {
-                response.data.mutualFunds = mfResponse.data.map(holding => {
+            if (mfResponse.data && mfResponse.data.data && Array.isArray(mfResponse.data.data)) {
+                response.data.mutualFunds = mfResponse.data.data.map(holding => {
                     const currentNav = parseFloat(holding.last_price || holding.current_nav || 0);
                     const avgCost = parseFloat(holding.average_price || holding.purchase_price || 0);
                     const units = parseFloat(holding.quantity || holding.units || 0);
@@ -314,72 +270,63 @@ const getAccount = async (req, res) => {
                 });
             }
         } catch (mfError) {
-            if (mfError.message.includes('Session expired')) {
-                return res.status(401).json({ success: false, error: mfError.message });
-            }
             console.error('Error fetching mutual fund holdings:', mfError.message);
         }
 
         res.json(response);
     } catch (error) {
-        if (error.status === 401 || error.status === 403 || (error.message && error.message.toLowerCase().includes('token'))) {
-            return res.status(401).json({ success: false, error: 'Session expired. Please login again.' });
+        console.error('Error in account endpoint:', error);
+        if (error.status_code === 403 || error.status_code === 401) {
+            return res.status(401).json({
+                success: false,
+                error: 'Session expired. Please login again.'
+            });
         }
-        console.error('Error fetching account info:', error);
-        res.status(500).json({ success: false, error: error.message });
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Failed to fetch account information'
+        });
     }
 };
 
-// Place a regular order
-const placeRegularOrder = async (req, res) => {
+// Place an order
+const placeOrder = async (req, res) => {
     try {
-        if (!ensureAccessToken(res)) return;
-
-        const {
-            tradingsymbol,
-            transaction_type,
-            quantity,
-            price,
-            product,
-            order_type,
-            validity,
-            exchange,
-            trigger_price,
-            squareoff,
-            stoploss,
-            trailing_stoploss
-        } = req.body;
-
-        if (!tradingsymbol || !transaction_type || !quantity || !product || !order_type || !validity || !exchange) {
-            return res.status(400).json({
+        const accessToken = req.headers.authorization?.split(' ')[1];
+        if (!accessToken) {
+            return res.status(401).json({
                 success: false,
-                error: 'Missing required fields'
+                error: 'No access token provided'
             });
         }
 
-        const response = await kc.placeOrder('regular', {
+        const {
             tradingsymbol,
+            exchange,
             transaction_type,
             quantity,
-            price,
             product,
             order_type,
-            validity,
-            exchange,
-            trigger_price,
-            squareoff,
-            stoploss,
-            trailing_stoploss
-        });
+            price,
+            trigger_price
+        } = req.body;
 
+        kc.setAccessToken(accessToken);
+        const order = await kc.placeOrder('regular', {
+            tradingsymbol,
+            exchange,
+            transaction_type,
+            quantity,
+            product,
+            order_type,
+            price,
+            trigger_price
+        });
         res.json({
             success: true,
-            order_id: response.order_id
+            order_id: order.order_id
         });
     } catch (error) {
-        if (error.status === 401 || error.status === 403 || (error.message && error.message.toLowerCase().includes('token'))) {
-            return res.status(401).json({ success: false, error: 'Session expired. Please login again.' });
-        }
         console.error('Error placing order:', error);
         res.status(400).json({
             success: false,
@@ -388,10 +335,16 @@ const placeRegularOrder = async (req, res) => {
     }
 };
 
-// Cancel a regular order
-const cancelRegularOrder = async (req, res) => {
+// Cancel an order
+const cancelOrder = async (req, res) => {
     try {
-        if (!ensureAccessToken(res)) return;
+        const accessToken = req.headers.authorization?.split(' ')[1];
+        if (!accessToken) {
+            return res.status(401).json({
+                success: false,
+                error: 'No access token provided'
+            });
+        }
 
         const { order_id } = req.params;
         if (!order_id) {
@@ -401,6 +354,7 @@ const cancelRegularOrder = async (req, res) => {
             });
         }
 
+        kc.setAccessToken(accessToken);
         const response = await kc.cancelOrder('regular', order_id);
 
         res.json({
@@ -408,9 +362,6 @@ const cancelRegularOrder = async (req, res) => {
             order_id: response.order_id
         });
     } catch (error) {
-        if (error.status === 401 || error.status === 403 || (error.message && error.message.toLowerCase().includes('token'))) {
-            return res.status(401).json({ success: false, error: 'Session expired. Please login again.' });
-        }
         console.error('Error canceling order:', error);
         res.status(400).json({
             success: false,
@@ -419,10 +370,16 @@ const cancelRegularOrder = async (req, res) => {
     }
 };
 
-// Modify a regular order
-const modifyRegularOrder = async (req, res) => {
+// Modify an order
+const modifyOrder = async (req, res) => {
     try {
-        if (!ensureAccessToken(res)) return;
+        const accessToken = req.headers.authorization?.split(' ')[1];
+        if (!accessToken) {
+            return res.status(401).json({
+                success: false,
+                error: 'No access token provided'
+            });
+        }
 
         const { order_id } = req.params;
         const {
@@ -439,6 +396,7 @@ const modifyRegularOrder = async (req, res) => {
             });
         }
 
+        kc.setAccessToken(accessToken);
         const response = await kc.modifyOrder('regular', order_id, {
             quantity,
             price,
@@ -450,9 +408,6 @@ const modifyRegularOrder = async (req, res) => {
             order_id: response.order_id
         });
     } catch (error) {
-        if (error.status === 401 || error.status === 403 || (error.message && error.message.toLowerCase().includes('token'))) {
-            return res.status(401).json({ success: false, error: 'Session expired. Please login again.' });
-        }
         console.error('Error modifying order:', error);
         res.status(400).json({
             success: false,
@@ -464,14 +419,18 @@ const modifyRegularOrder = async (req, res) => {
 // Get order by ID (order history)
 const getOrderById = async (req, res) => {
     try {
-        if (!ensureAccessToken(res)) return;
+        const accessToken = req.headers.authorization?.split(' ')[1];
+        if (!accessToken) {
+            return res.status(401).json({
+                success: false,
+                error: 'No access token provided'
+            });
+        }
         const { order_id } = req.params;
+        kc.setAccessToken(accessToken);
         const orderHistory = await kc.getOrderHistory(order_id);
         res.json({ success: true, data: orderHistory });
     } catch (error) {
-        if (error.status === 401 || error.status === 403 || (error.message && error.message.toLowerCase().includes('token'))) {
-            return res.status(401).json({ success: false, error: 'Session expired. Please login again.' });
-        }
         console.error('Error fetching order by id:', error);
         res.status(500).json({ success: false, error: error.message });
     }
@@ -485,7 +444,7 @@ const refreshZerodhaInstruments = async (req, res) => {
             responseType: 'stream',
             headers: {
                 'X-Kite-Version': '3',
-                'Authorization': `token ${process.env.ZERODHA_API_KEY}:${getAccessToken()}`
+                'Authorization': `token ${process.env.ZERODHA_API_KEY}:${process.env.ZERODHA_ACCESS_TOKEN}`
             }
         });
 
@@ -498,9 +457,6 @@ const refreshZerodhaInstruments = async (req, res) => {
             writer.on('finish', resolve);
             writer.on('error', reject);
         });
-
-        // Delete all existing records before inserting new ones
-        await db.pool.query('DELETE FROM zerodhainstruments');
 
         // Parse CSV and store in DB
         const parser = fs.createReadStream(tempFile).pipe(csv.parse({ columns: true }));
@@ -531,9 +487,6 @@ const refreshZerodhaInstruments = async (req, res) => {
         fs.unlinkSync(tempFile); // Clean up
         res.json({ success: true, message: `Instrument list refreshed! Total records: ${count}` });
     } catch (err) {
-        if (err.status === 401 || err.status === 403 || (err.message && err.message.toLowerCase().includes('token'))) {
-            return res.status(401).json({ success: false, error: 'Session expired. Please login again.' });
-        }
         console.error('Failed to update instruments:', err);
         res.status(500).json({ success: false, error: err.message });
     }
@@ -547,147 +500,18 @@ const getInstrumentsLtp = async (req, res) => {
             return res.status(400).json({ error: 'Exchange and tradingsymbol are required' });
         }
 
-        if (!ensureAccessToken(res)) return;
+        const accessToken = req.headers.authorization?.split(' ')[1];
+        if (!accessToken) {
+            return res.status(401).json({ error: 'No access token provided' });
+        }
+
+        kc.setAccessToken(accessToken);
         const response = await kc.getLTP(`${exchange}:${tradingsymbol}`);
 
         res.json(response);
     } catch (error) {
-        if (error.status === 401 || error.status === 403 || (error.message && error.message.toLowerCase().includes('token'))) {
-            return res.status(401).json({ success: false, error: 'Session expired. Please login again.' });
-        }
         console.error('Error fetching LTP:', error);
         res.status(500).json({ error: 'Failed to fetch LTP' });
-    }
-};
-
-// Place an AMO order
-const placeAmoOrder = async (req, res) => {
-    try {
-        if (!ensureAccessToken(res)) return;
-
-        const {
-            tradingsymbol,
-            transaction_type,
-            quantity,
-            price,
-            product,
-            order_type,
-            validity,
-            exchange,
-            trigger_price,
-            squareoff,
-            stoploss,
-            trailing_stoploss
-        } = req.body;
-
-        if (!tradingsymbol || !transaction_type || !quantity || !product || !order_type || !validity || !exchange) {
-            return res.status(400).json({
-                success: false,
-                error: 'Missing required fields'
-            });
-        }
-
-        const response = await kc.placeOrder('amo', {
-            tradingsymbol,
-            transaction_type,
-            quantity,
-            price,
-            product,
-            order_type,
-            validity,
-            exchange,
-            trigger_price,
-            squareoff,
-            stoploss,
-            trailing_stoploss
-        });
-
-        res.json({
-            success: true,
-            order_id: response.order_id
-        });
-    } catch (error) {
-        if (error.status === 401 || error.status === 403 || (error.message && error.message.toLowerCase().includes('token'))) {
-            return res.status(401).json({ success: false, error: 'Session expired. Please login again.' });
-        }
-        console.error('Error placing AMO order:', error);
-        res.status(400).json({
-            success: false,
-            error: error.message || 'Failed to place AMO order'
-        });
-    }
-};
-
-// Cancel an AMO order
-const cancelAmoOrder = async (req, res) => {
-    try {
-        if (!ensureAccessToken(res)) return;
-
-        const { order_id } = req.params;
-        if (!order_id) {
-            return res.status(400).json({
-                success: false,
-                error: 'Order ID is required'
-            });
-        }
-
-        const response = await kc.cancelOrder('amo', order_id);
-
-        res.json({
-            success: true,
-            order_id: response.order_id
-        });
-    } catch (error) {
-        if (error.status === 401 || error.status === 403 || (error.message && error.message.toLowerCase().includes('token'))) {
-            return res.status(401).json({ success: false, error: 'Session expired. Please login again.' });
-        }
-        console.error('Error canceling AMO order:', error);
-        res.status(400).json({
-            success: false,
-            error: error.message || 'Failed to cancel AMO order'
-        });
-    }
-};
-
-// Modify an AMO order
-const modifyAmoOrder = async (req, res) => {
-    try {
-        if (!ensureAccessToken(res)) return;
-
-        const { order_id } = req.params;
-        const {
-            quantity,
-            price,
-            order_type,
-            trigger_price
-        } = req.body;
-
-        if (!order_id) {
-            return res.status(400).json({
-                success: false,
-                error: 'Order ID is required'
-            });
-        }
-
-        const response = await kc.modifyOrder('amo', order_id, {
-            quantity,
-            price,
-            order_type,
-            trigger_price
-        });
-        res.json({
-            success: true,
-            order_id: response.order_id
-        });
-    } catch (error) {
-        if (error.status === 401 || error.status === 403 || (error.message && error.message.toLowerCase().includes('token'))) {
-            return res.status(401).json({ success: false, error: 'Session expired. Please login again.' });
-        }
-        console.error('Error modifying AMO order:', error);
-        res.status(400).json({
-            success: false,
-            error: error.message || 'Failed to modify AMO order'
-        });
     }
 };
 
@@ -698,12 +522,9 @@ module.exports = {
     handleLogin,
     getOrders,
     getAccount,
-    placeRegularOrder,
-    cancelRegularOrder,
-    modifyRegularOrder,
-    placeAmoOrder,
-    cancelAmoOrder,
-    modifyAmoOrder,
+    placeOrder,
+    cancelOrder,
+    modifyOrder,
     getOrderById,
     refreshZerodhaInstruments,
     getInstrumentsLtp

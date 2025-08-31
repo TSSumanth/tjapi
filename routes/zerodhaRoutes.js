@@ -6,12 +6,9 @@ const {
     handleLogin,
     getOrders,
     getAccount,
-    placeRegularOrder,
-    cancelRegularOrder,
-    modifyRegularOrder,
-    placeAmoOrder,
-    cancelAmoOrder,
-    modifyAmoOrder,
+    placeOrder,
+    cancelOrder,
+    modifyOrder,
     getOrderById,
     refreshZerodhaInstruments,
     getInstrumentsLtp
@@ -39,24 +36,14 @@ router.route('/login')
 router.route('/orders')
     .get(getOrders);
 
-router.route('/orders/:order_id')
-    .get(getOrderById);
+router.route('/order')
+    .post(placeOrder);
 
-// Regular Order routes
-router.route('/orders/regular')
-    .post(placeRegularOrder);
+router.route('/order/:order_id/cancel')
+    .post(cancelOrder);
 
-router.route('/orders/regular/:order_id')
-    .delete(cancelRegularOrder)
-    .put(modifyRegularOrder);
-
-// AMO Order routes
-router.route('/orders/amo')
-    .post(placeAmoOrder);
-
-router.route('/orders/amo/:order_id')
-    .delete(cancelAmoOrder)
-    .put(modifyAmoOrder);
+router.route('/order/:order_id/modify')
+    .post(modifyOrder);
 
 // Instruments routes
 router.route('/instruments')
@@ -72,5 +59,7 @@ router.get('/instruments/ltp', getInstrumentsLtp);
 // Account routes
 router.route('/account')
     .get(getAccount);
+
+router.get('/order/:order_id', getOrderById);
 
 module.exports = router; 
