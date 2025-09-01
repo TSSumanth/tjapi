@@ -1,8 +1,44 @@
 const moment = require('moment');
 const db = require('../db');
 
+/**
+ * Get instruments with advanced filtering
+ * 
+ * Query Parameters:
+ * - search: Search in tradingsymbol (case-insensitive)
+ * - name: Filter by instrument name (e.g., 'NIFTY', 'BANKNIFTY')
+ * - exchange: Filter by exchange (e.g., 'NFO', 'NSE')
+ * - type: Filter by instrument_type (e.g., 'CE', 'PE', 'FUT')
+ * - strike: Filter by exact strike value
+ * - strike_min & strike_max: Filter by strike range (BETWEEN)
+ * - expiry: Filter by expiry date (YYYY-MM-DD)
+ * - page: Pagination page number (default: 1)
+ * - pageSize: Results per page (default: 100)
+ * 
+ * Example: /instruments?name=NIFTY&exchange=NFO&type=CE&expiry=2025-09-02&strike_min=24000&strike_max=25000
+ */
 const getInstruments = async (req, res) => {
     try {
+        // Validate strike range parameters
+        if (req.query.strike_min && req.query.strike_max) {
+            const min = parseFloat(req.query.strike_min);
+            const max = parseFloat(req.query.strike_max);
+            
+            if (isNaN(min) || isNaN(max)) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'strike_min and strike_max must be valid numbers'
+                });
+            }
+            
+            if (min > max) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'strike_min cannot be greater than strike_max'
+                });
+            }
+        }
+
         // Build SQL query and params
         let sql = 'SELECT * FROM zerodhainstruments WHERE 1=1';
         let params = [];
@@ -12,6 +48,14 @@ const getInstruments = async (req, res) => {
             sql += ' AND UPPER(tradingsymbol) LIKE ?';
             params.push(`%${req.query.search.toUpperCase()}%`);
         }
+        if (req.query.name) {
+            sql += ' AND name = ?';
+            params.push(req.query.name.toUpperCase());
+        }
+        if (req.query.exchange) {
+            sql += ' AND exchange = ?';
+            params.push(req.query.exchange.toUpperCase());
+        }
         if (req.query.type) {
             sql += ' AND instrument_type = ?';
             params.push(req.query.type.toUpperCase());
@@ -19,6 +63,10 @@ const getInstruments = async (req, res) => {
         if (req.query.strike) {
             sql += ' AND strike = ?';
             params.push(req.query.strike);
+        }
+        if (req.query.strike_min && req.query.strike_max) {
+            sql += ' AND strike BETWEEN ? AND ?';
+            params.push(parseFloat(req.query.strike_min), parseFloat(req.query.strike_max));
         }
         if (req.query.expiry) {
             sql += ' AND expiry = ?';
@@ -38,6 +86,10 @@ const getInstruments = async (req, res) => {
         sql += ' ORDER BY expiry, strike LIMIT ? OFFSET ?';
         params.push(pageSize, offset);
 
+        // Log the query for debugging
+        console.log('🔍 Instruments Query:', sql);
+        console.log('📊 Query Parameters:', params);
+        
         // Query paginated instruments
         const [instruments] = await db.pool.query(sql, params);
 
