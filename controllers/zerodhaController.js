@@ -506,9 +506,34 @@ const getInstrumentsLtp = async (req, res) => {
         }
 
         kc.setAccessToken(accessToken);
-        const response = await kc.getLTP(`${exchange}:${tradingsymbol}`);
-
+        
+        // Handle multiple tradingsymbols (comma-separated)
+        const tradingsymbols = tradingsymbol.split(',');
+        console.log(`🔍 Fetching LTPs for ${tradingsymbols.length} instruments in ${exchange}`);
+        
+        // Create instrument keys for KiteConnect
+        const instrumentKeys = tradingsymbols.map(symbol => `${exchange}:${symbol.trim()}`).filter(Boolean);
+        
+        if (instrumentKeys.length === 0) {
+            return res.status(400).json({ error: 'No valid tradingsymbols provided' });
+        }
+        
+        console.log(`📊 Instrument keys:`, instrumentKeys);
+        
+        // Fetch LTPs for all instruments
+        const response = await kc.getLTP(instrumentKeys);
+        
+        console.log(`✅ LTP response:`, response);
+        
+        // Prevent caching to ensure fresh LTP data
+        res.set({
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        });
+        
         res.json(response);
+        
     } catch (error) {
         console.error('Error fetching LTP:', error);
         res.status(500).json({ error: 'Failed to fetch LTP' });
