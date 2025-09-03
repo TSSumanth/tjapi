@@ -1,0 +1,33 @@
+const express = require('express');
+const router = express.Router();
+const {
+    getMonthlyPerformance,
+    upsertMonthlyPerformance,
+    getCurrentMonthPerformance
+} = require('../controllers/monthlyPerformanceController');
+
+/**
+ * GET /api/monthly-performance
+ * Get monthly performance data (current month by default, or specific year/month)
+ */
+router.get('/', getMonthlyPerformance);
+
+/**
+ * GET /api/monthly-performance/current
+ * Get current month performance data
+ */
+router.get('/current', getCurrentMonthPerformance);
+
+/**
+ * POST /api/monthly-performance
+ * Create or update monthly performance data
+ */
+router.post('/', upsertMonthlyPerformance);
+
+/**
+ * PUT /api/monthly-performance
+ * Update monthly performance data (alias for POST)
+ */
+router.put('/', upsertMonthlyPerformance);
+
+module.exports = router;

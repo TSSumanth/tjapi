@@ -20,6 +20,7 @@ const automatedOrdersRouter = require('./routes/automatedOrdersRoutes');
 const algoStrategiesRouter = require('./routes/algoStrategiesRoutes');
 const algoStrategyNotesRoutes = require('./routes/algoStrategyNotesRoutes');
 const strategyTargetAchievementsRouter = require('./routes/strategyTargetAchievementsRoutes');
+const monthlyPerformanceRouter = require('./routes/monthlyPerformanceRoutes');
 
 const app = express();
 
@@ -39,7 +40,12 @@ const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = [
       'http://localhost:3000',
+      'http://localhost:3001',  // React app on alternative port
+      'http://localhost:3002',  // React app on alternative port
       'http://localhost:5003',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:3001',  // React app on alternative port
+      'http://127.0.0.1:3002',  // React app on alternative port
       'http://127.0.0.1:5003',
       'https://kite.trade',
       'https://kite.zerodha.com',
@@ -90,6 +96,7 @@ app.use("/api/zerodha-account", zerodhaAccountRouter);
 app.use("/api/automated-orders", automatedOrdersRouter);
 app.use("/api/algo-strategies", algoStrategiesRouter);
 app.use("/api/strategy-target-achievements", strategyTargetAchievementsRouter);
+app.use("/api/monthly-performance", monthlyPerformanceRouter);
 
 //Use this only at the end, if used at the beginning no matter what route is called by the client the response on the below method is only displayed
 app.all("*", (req, res, next) => {
