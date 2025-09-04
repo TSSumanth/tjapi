@@ -2,7 +2,7 @@ const db = require("../db");
 const moment = require("moment");
 
 exports.createStrategy = async (req, res) => {
-  let { name, description, created_at, stock_trades, option_trades, status, symbol, symbol_ltp, realized_pl, unrealized_pl } = req.body;
+  let { name, description, created_at, stock_trades, option_trades, status, symbol, symbol_ltp, realized_pl, unrealized_pl, expenses } = req.body;
 
   if (!name) {
     return res.status(400).json({
@@ -44,6 +44,7 @@ exports.createStrategy = async (req, res) => {
     if (realized_pl === undefined || realized_pl === null) realized_pl = 0.00;
     if (unrealized_pl === undefined || unrealized_pl === null) unrealized_pl = 0.00;
     if (symbol_ltp === undefined || symbol_ltp === null || symbol_ltp === '') symbol_ltp = 0.00;
+    if (expenses === undefined || expenses === null) expenses = 0.00;
 
     // Format the date for MySQL
     const formattedDate = moment(created_at).format('YYYY-MM-DD HH:mm:ss');
@@ -52,11 +53,12 @@ exports.createStrategy = async (req, res) => {
     const formattedSymbolLtp = parseFloat(symbol_ltp).toFixed(2);
     const formattedRealizedPl = parseFloat(realized_pl).toFixed(2);
     const formattedUnrealizedPl = parseFloat(unrealized_pl).toFixed(2);
+    const formattedExpenses = parseFloat(expenses).toFixed(2);
 
     // Insert new strategy
     const [result] = await db.pool.query(
-      "INSERT INTO strategies (name, description, status, stock_trades, option_trades, created_at, symbol, symbol_ltp, realized_pl, unrealized_pl) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      [name.toUpperCase(), description, status.toUpperCase(), stock_trades, option_trades, formattedDate, symbol, formattedSymbolLtp, formattedRealizedPl, formattedUnrealizedPl]
+      "INSERT INTO strategies (name, description, status, stock_trades, option_trades, created_at, symbol, symbol_ltp, realized_pl, unrealized_pl, expenses) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [name.toUpperCase(), description, status.toUpperCase(), stock_trades, option_trades, formattedDate, symbol, formattedSymbolLtp, formattedRealizedPl, formattedUnrealizedPl, formattedExpenses]
     );
 
     if (result.affectedRows === 1) {
@@ -137,7 +139,7 @@ exports.getStrategies = async (req, res) => {
 
 exports.updateStrategy = async (req, res) => {
   const { id } = req.query;
-  let { name, description, stock_trades, option_trades, status, symbol, symbol_ltp, realized_pl, unrealized_pl } = req.body;
+  let { name, description, stock_trades, option_trades, status, symbol, symbol_ltp, realized_pl, unrealized_pl, expenses } = req.body;
 
   try {
     if (status && !(status.toUpperCase() === "OPEN" || status.toUpperCase() === "CLOSE")) {
@@ -187,6 +189,10 @@ exports.updateStrategy = async (req, res) => {
     if (unrealized_pl !== undefined) {
       updateFields.push("unrealized_pl");
       updateValues.push(parseFloat(unrealized_pl).toFixed(2));
+    }
+    if (expenses !== undefined) {
+      updateFields.push("expenses");
+      updateValues.push(parseFloat(expenses).toFixed(2));
     }
 
     if (updateFields.length === 0) {
