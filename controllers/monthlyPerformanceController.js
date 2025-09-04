@@ -203,8 +203,55 @@ const getCurrentMonthPerformance = async (req, res) => {
     }
 };
 
+/**
+ * Get last 6 months of performance data in descending order
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const getLast6MonthsPerformance = async (req, res) => {
+    try {
+        const currentDate = new Date();
+        const currentYear = currentDate.getFullYear();
+        const currentMonth = currentDate.getMonth() + 1;
+        
+        // Calculate the date 6 months ago
+        const sixMonthsAgo = new Date(currentDate);
+        sixMonthsAgo.setMonth(currentMonth - 6);
+        const startYear = sixMonthsAgo.getFullYear();
+        const startMonth = sixMonthsAgo.getMonth() + 1;
+        
+        try {
+            const [rows] = await pool.execute(
+                `SELECT * FROM monthly_performance 
+                 WHERE (year > ?) OR (year = ? AND month >= ?)
+                 ORDER BY year DESC, month DESC 
+                 LIMIT 6`,
+                [startYear, startYear, startMonth]
+            );
+            
+            res.json({
+                success: true,
+                data: rows
+            });
+        } catch (err) {
+            console.error('Error fetching last 6 months performance:', err);
+            res.status(500).json({ 
+                success: false, 
+                error: 'Failed to fetch last 6 months performance data' 
+            });
+        }
+    } catch (error) {
+        console.error('Error in getLast6MonthsPerformance:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Internal server error' 
+        });
+    }
+};
+
 module.exports = {
     getMonthlyPerformance,
     upsertMonthlyPerformance,
-    getCurrentMonthPerformance
+    getCurrentMonthPerformance,
+    getLast6MonthsPerformance
 };

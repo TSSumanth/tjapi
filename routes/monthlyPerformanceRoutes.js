@@ -3,7 +3,8 @@ const router = express.Router();
 const {
     getMonthlyPerformance,
     upsertMonthlyPerformance,
-    getCurrentMonthPerformance
+    getCurrentMonthPerformance,
+    getLast6MonthsPerformance
 } = require('../controllers/monthlyPerformanceController');
 
 /**
@@ -29,5 +30,11 @@ router.post('/', upsertMonthlyPerformance);
  * Update monthly performance data (alias for POST)
  */
 router.put('/', upsertMonthlyPerformance);
+
+/**
+ * GET /api/monthly-performance/last-6-months
+ * Get last 6 months of performance data in descending order
+ */
+router.get('/last-6-months', getLast6MonthsPerformance);
 
 module.exports = router;
