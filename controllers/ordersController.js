@@ -1,6 +1,7 @@
 const db = require("../db");
 const moment = require("moment");
-
+const slackHelper = require("../services/slackIntegrationHelper");
+const webhookUrl = process.env.SLACK_JOURNALING_WEBHOOK;
 
 exports.createStockOrder = async (req, res) => {
   const { asset, ordertype, quantity, price, date, tradeid } = req.body;
@@ -37,6 +38,25 @@ exports.createStockOrder = async (req, res) => {
 
     if (result.affectedRows === 1) {
       const [newRecord] = await db.pool.query("SELECT * FROM stock_orders WHERE id = ?", [result.insertId]);
+      
+      // Send Slack notification for new stock order
+      
+      if (webhookUrl) {
+        try {
+          await slackHelper.notifyNewOrder({
+            asset: asset,
+            ordertype: ordertype.toUpperCase(),
+            quantity: quantity,
+            price: priceNum
+          }, webhookUrl);
+        } catch (slackError) {
+          console.error('Failed to send Slack notification for new stock order:', slackError);
+          // Don't fail the request if Slack notification fails
+        }
+      } else {
+        console.warn('SLACK_JOURNALING_WEBHOOK not configured, skipping notification');
+      }
+      
       return res.status(201).json(newRecord[0]);
     }
     return res.status(500).json({ message: "Internal server error" });
@@ -237,6 +257,24 @@ exports.updateStockOrder = async (req, res) => {
     const [result] = await db.pool.query(sqlQuery, updateValues);
 
     if (result.affectedRows === 1) {
+      // Send Slack notification for order update
+    
+      if (webhookUrl) {
+        try {
+          await slackHelper.notifyOrderUpdate({
+            asset: asset || 'Updated',
+            ordertype: ordertype || 'Updated',
+            quantity: quantity || 0,
+            price: price || 0
+          }, webhookUrl);
+        } catch (slackError) {
+          console.error('Failed to send Slack notification for order update:', slackError);
+          // Don't fail the request if Slack notification fails
+        }
+      } else {
+        console.warn('SLACK_JOURNALING_WEBHOOK not configured, skipping notification');
+      }
+      
       return res.status(200).json({ message: "Order updated successfully" });
     }
 
@@ -307,6 +345,26 @@ exports.createOptionOrder = async (req, res) => {
         "SELECT * FROM option_orders WHERE id = ?",
         [result.insertId]
       );
+      
+      // Send Slack notification for new option order
+      
+      if (webhookUrl) {
+        try {
+          await slackHelper.notifyNewOrder({
+            asset: asset,
+            ordertype: ordertype.toUpperCase(),
+            quantity: quantity,
+            price: priceNum,
+            lotsize: lotsize
+          }, webhookUrl);
+        } catch (slackError) {
+          console.error('Failed to send Slack notification for new option order:', slackError);
+          // Don't fail the request if Slack notification fails
+        }
+      } else {
+        console.warn('SLACK_JOURNALING_WEBHOOK not configured, skipping notification');
+      }
+      
       return res.status(201).json(newOrder[0]);
     }
 
@@ -544,6 +602,25 @@ exports.updateOptionOrder = async (req, res) => {
     const [result] = await db.pool.query(sqlQuery, updateValues);
 
     if (result.affectedRows === 1) {
+      // Send Slack notification for option order update
+      
+      if (webhookUrl) {
+        try {
+          await slackHelper.notifyOrderUpdate({
+            asset: asset || 'Updated',
+            ordertype: ordertype || 'Updated',
+            quantity: quantity || 0,
+            price: price || 0,
+            lotsize: lotsize || 0
+          }, webhookUrl);
+        } catch (slackError) {
+          console.error('Failed to send Slack notification for option order update:', slackError);
+          // Don't fail the request if Slack notification fails
+        }
+      } else {
+        console.warn('SLACK_JOURNALING_WEBHOOK not configured, skipping notification');
+      }
+      
       return res.status(200).json({ message: "Order updated successfully" });
     }
 
