@@ -1,6 +1,7 @@
 const db = require("../db");
 const moment = require("moment");
-
+const slackHelper = require("../services/slackIntegrationHelper");
+const slack_webhook = process.env.SLACK_JOURNALING_WEBHOOK;
 
 exports.createStockTrade = async (req, res) => {
   const {
@@ -153,6 +154,23 @@ exports.createStockTrade = async (req, res) => {
         } catch (error) {
           console.error('Error updating strategy stock_trades:', error);
         }
+      }
+
+      // Send Slack notification for new stock trade
+      try {
+        await slackHelper.notifyNewTrade({
+          tradeid,
+          asset,
+          tradetype: tradetype.toUpperCase(),
+          quantity,
+          entryprice,
+          entrydate,
+          status: status.toUpperCase(),
+          type: 'STOCK'
+        }, slack_webhook);
+      } catch (slackError) {
+        console.error('Failed to send Slack notification for stock trade:', slackError);
+        // Don't fail the main operation if Slack notification fails
       }
 
       return res.status(201).json({
@@ -610,6 +628,25 @@ exports.createOptionTrade = async (req, res) => {
         } catch (error) {
           console.error('Error updating strategy option_trades:', error);
         }
+      }
+
+      // Send Slack notification for new option trade
+      try {
+        await slackHelper.notifyNewTrade({
+          tradeid,
+          asset,
+          tradetype: tradetype.toUpperCase(),
+          quantity,
+          premiumamount,
+          entrydate,
+          status: status.toUpperCase(),
+          type: 'OPTION',
+          strikeprize,
+          optiontype
+        }, slack_webhook);
+      } catch (slackError) {
+        console.error('Failed to send Slack notification for option trade:', slackError);
+        // Don't fail the main operation if Slack notification fails
       }
 
       return res.status(201).json({

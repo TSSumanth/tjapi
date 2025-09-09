@@ -259,7 +259,8 @@ exports.updateStockOrder = async (req, res) => {
     if (result.affectedRows === 1) {
       // Send Slack notification for order update
     
-      if (webhookUrl) {
+      // we need to send alerts only when asset, ordertype, quantity, price are updated
+      if (webhookUrl && (asset !== undefined || ordertype !== undefined || quantity !== undefined || price !== undefined)) {
         try {
           await slackHelper.notifyOrderUpdate({
             asset: asset || 'Updated',
@@ -601,10 +602,10 @@ exports.updateOptionOrder = async (req, res) => {
 
     const [result] = await db.pool.query(sqlQuery, updateValues);
 
-    if (result.affectedRows === 1) {
+    if (result.affectedRows === 1 ) {
       // Send Slack notification for option order update
       
-      if (webhookUrl) {
+      if (webhookUrl && (asset !== undefined || ordertype !== undefined || quantity !== undefined || price !== undefined)) {
         try {
           await slackHelper.notifyOrderUpdate({
             asset: asset || 'Updated',
