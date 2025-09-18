@@ -23,6 +23,7 @@ const strategyTargetAchievementsRouter = require('./routes/strategyTargetAchieve
 const monthlyPerformanceRouter = require('./routes/monthlyPerformanceRoutes');
 const strategyPlHistoryRouter = require('./routes/strategyPlHistoryRoutes');
 const slackRouter = require('./routes/slackRoutes');
+const tradingNotesRouter = require('./routes/tradingNotesRoutes');
 
 const app = express();
 
@@ -101,6 +102,7 @@ app.use("/api/strategy-target-achievements", strategyTargetAchievementsRouter);
 app.use("/api/monthly-performance", monthlyPerformanceRouter);
 app.use("/api/strategy-pl-history", strategyPlHistoryRouter);
 app.use("/api/slack", slackRouter);
+app.use("/api/trading-notes", tradingNotesRouter);
 
 //Use this only at the end, if used at the beginning no matter what route is called by the client the response on the below method is only displayed
 app.all("*", (req, res, next) => {
