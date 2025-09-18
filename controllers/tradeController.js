@@ -216,11 +216,11 @@ exports.getStockTrades = async (req, res) => {
       params.push(exitdate);
     }
     if (createdafter !== undefined) {
-      query += " AND created_at >= ?";
+      query += " AND entrydate >= ?";
       params.push(createdafter);
     }
     if (createdbefore !== undefined) {
-      query += " AND created_at <= ?";
+      query += " AND entrydate <= ?";
       params.push(createdbefore);
     }
     if (status !== undefined) {
@@ -698,11 +698,11 @@ exports.getOptionTrades = async (req, res) => {
       params.push(exitdate);
     }
     if (createdafter !== undefined) {
-      query += " AND created_at >= ?";
+      query += " AND entrydate >= ?";
       params.push(createdafter);
     }
     if (createdbefore !== undefined) {
-      query += " AND created_at <= ?";
+      query += " AND entrydate <= ?";
       params.push(createdbefore);
     }
     if (status !== undefined) {
