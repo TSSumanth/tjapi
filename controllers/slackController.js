@@ -348,3 +348,56 @@ exports.testDailySummary = async (req, res) => {
   }
 };
 
+exports.sendAlert = async (req, res) => {
+  try {
+    const { strategyName, strategyId, message, alertType } = req.body;
+    
+    // Validate required fields
+    if (!strategyName || !strategyId || !message) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: strategyName, strategyId, message'
+      });
+    }
+
+    // Use SLACK_ALERTS_WEBHOOK from environment
+    const alertsWebhook = process.env.SLACK_ALERTS_WEBHOOK;
+    
+    if (!alertsWebhook) {
+      return res.status(400).json({
+        success: false,
+        error: 'SLACK_ALERTS_WEBHOOK not configured'
+      });
+    }
+
+    // Format the alert message
+    const alertMessage = `🚨 **${alertType || 'ALERT'}**\n\n` +
+      `**Strategy:** ${strategyName}\n` +
+      `**Strategy ID:** ${strategyId}\n` +
+      `**Message:** ${message}\n` +
+      `**Time:** ${new Date().toLocaleString()}`;
+
+    const success = await slackNotificationService.sendMessage(alertMessage, null, alertsWebhook);
+    
+    if (success) {
+      res.status(200).json({
+        success: true,
+        message: 'Alert sent successfully'
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to send alert'
+      });
+    }
+    
+  } catch (error) {
+    console.error('Error sending alert:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      details: error.message
+    });
+  }
+};
+

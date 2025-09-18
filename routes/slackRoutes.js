@@ -23,6 +23,8 @@ router.get("/daily-summary", slackController.sendDailySummary);
 // Test daily summary (for development/testing)
 router.get("/test-daily-summary", slackController.testDailySummary);
 
+// Send alert notification
+router.post("/alert", slackController.sendAlert);
 
 // Check Slack configuration status
 router.get("/status", slackController.getStatus);

@@ -86,7 +86,7 @@ exports.createStockTrade = async (req, res) => {
   if (exitaverageprice === undefined) exitaverageprice = 0;
   if (finalexitprice === undefined) finalexitprice = 0;
   if (exitdate === undefined || exitdate === "") exitdate = null;
-  if (lastmodifieddate === undefined || lastmodifieddate === "") lastmodifieddate = null;
+  if (lastmodifieddate === undefined || lastmodifieddate === "") lastmodifieddate = new Date();
   if (overallreturn === undefined) overallreturn = 0;
   if (ltp === undefined) ltp = null;
 
@@ -353,6 +353,7 @@ exports.updateStockTrade = async (req, res) => {
       notes,
       tags,
       ltp,
+      // unrealizedpl, // Not stored in database, calculated on frontend
       strategy_id
     } = req.body;
 
@@ -428,6 +429,11 @@ exports.updateStockTrade = async (req, res) => {
       updateFields.push("ltp");
       updateValues.push(ltp);
     }
+    // Note: unrealizedpl is calculated on the frontend and not stored in database
+    // if (unrealizedpl !== undefined) {
+    //   updateFields.push("unrealizedpl");
+    //   updateValues.push(unrealizedpl);
+    // }
     if (strategy_id !== undefined) {
       updateFields.push("strategy_id");
       updateValues.push(strategy_id);
@@ -554,9 +560,9 @@ exports.createOptionTrade = async (req, res) => {
     if (closedquantity === undefined) closedquantity = quantity - openquantity;
     if (exitaverageprice === undefined) exitaverageprice = 0;
     if (finalexitprice === undefined) finalexitprice = 0;
-    if (exitdate === undefined || exitdate === "") exitdate = null;
-    if (lastmodifieddate === undefined || lastmodifieddate === "") lastmodifieddate = null;
-    if (overallreturn === undefined) overallreturn = 0;
+  if (exitdate === undefined || exitdate === "") exitdate = null;
+  if (lastmodifieddate === undefined || lastmodifieddate === "") lastmodifieddate = new Date();
+  if (overallreturn === undefined) overallreturn = 0;
     if (premiumamount === undefined) premiumamount = capitalused;
     if (ltp === undefined) ltp = null;
 
@@ -641,8 +647,7 @@ exports.createOptionTrade = async (req, res) => {
           entrydate,
           status: status.toUpperCase(),
           type: 'OPTION',
-          strikeprize,
-          optiontype
+          strikeprize
         }, slack_webhook);
       } catch (slackError) {
         console.error('Failed to send Slack notification for option trade:', slackError);
@@ -815,6 +820,7 @@ exports.updateOptionTrade = async (req, res) => {
       notes,
       tags,
       ltp,
+      // unrealizedpl, // Not stored in database, calculated on frontend
       strategy_id
     } = req.body;
 
@@ -898,6 +904,11 @@ exports.updateOptionTrade = async (req, res) => {
       updateFields.push("ltp");
       updateValues.push(ltp);
     }
+    // Note: unrealizedpl is calculated on the frontend and not stored in database
+    // if (unrealizedpl !== undefined) {
+    //   updateFields.push("unrealizedpl");
+    //   updateValues.push(unrealizedpl);
+    // }
     if (strategy_id !== undefined) {
       updateFields.push("strategy_id");
       updateValues.push(strategy_id);
