@@ -507,7 +507,7 @@ exports.createOptionTrade = async (req, res) => {
         error: "Missing required fields: tradetype"
       });
     }
-    if (!quantity) {
+    if (quantity === undefined || quantity === null) {
       return res.status(400).json({
         error: "Missing required fields: quantity"
       });
