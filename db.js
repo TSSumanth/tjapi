@@ -4,6 +4,8 @@ const mysql = require('mysql2/promise');
 const createPool = (config) => {
   return mysql.createPool({
     host: config.host,
+    ...(config.port != null &&
+      String(config.port).trim() !== '' && { port: Number(config.port) }),
     user: config.user,
     password: config.password,
     database: config.database,
@@ -11,8 +13,6 @@ const createPool = (config) => {
     connectionLimit: 20,
     queueLimit: 0,
     connectTimeout: 30000,
-    acquireTimeout: 30000,
-    timeout: 30000,
     enableKeepAlive: true,
     keepAliveInitialDelay: 10000,
     debug: false
@@ -22,6 +22,7 @@ const createPool = (config) => {
 // Create the production pool with production configuration
 const productionPool = createPool({
   host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME
