@@ -312,13 +312,19 @@ class SlackNotificationService {
    * @returns {Promise<boolean>} - Success status
    */
   async sendDailySummary(summaryData, webhookUrl = null) {
+    const formatInr = (n) =>
+      Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
     const { 
       date, 
       summary, 
       openTrades, 
+      openedTrades,
+      closedTrades,
       todayOrders, 
-      topStrategies, 
-      monthlyPerformance 
+      closedStrategies,
+      monthlyPerformance,
+      todayExpenses
     } = summaryData;
     
     const color = summary.monthlyPnL >= 0 ? 'good' : 'danger';
@@ -335,8 +341,8 @@ class SlackNotificationService {
           short: true
         },
         {
-          title: '📋 Today\'s Activity',
-          value: `Orders Created: ${summary.totalTodayOrders}\nOpen Trades: ${summary.totalOpenTrades}\nActive Strategies: ${summary.totalOpenStrategies}`,
+          title: '📋 Session activity',
+          value: `Orders (this day): ${summary.totalTodayOrders}\nOpen trades (EOD): ${summary.totalOpenTrades}\nOpened (this day): ${summary.totalOpenedTrades ?? 0}\nClosed (this day): ${summary.totalClosedTrades ?? 0}\nOpen strategies: ${summary.totalOpenStrategies}\nClosed strategies (this day): ${summary.totalClosedStrategies ?? 0}`,
           short: true
         }
       ],
@@ -346,6 +352,38 @@ class SlackNotificationService {
 
     const attachments = [mainAttachment];
 
+    // Today's trading costs (Expense Tracker — daily row for report date)
+    if (todayExpenses) {
+      const total =
+        todayExpenses.stt +
+        todayExpenses.exchange_charges +
+        todayExpenses.brokerage +
+        todayExpenses.others;
+      const lines = [
+        `• STT: ₹${formatInr(todayExpenses.stt)}`,
+        `• Exchange charges: ₹${formatInr(todayExpenses.exchange_charges)}`,
+        `• Brokerage: ₹${formatInr(todayExpenses.brokerage)}`,
+        `• Others: ₹${formatInr(todayExpenses.others)}`,
+        `*Total: ₹${formatInr(total)}*`
+      ];
+      if (todayExpenses.notes) {
+        lines.push(`_Notes: ${todayExpenses.notes}_`);
+      }
+      attachments.push({
+        color: '#546e7a',
+        title: '💸 Today\'s trading costs',
+        text: lines.join('\n'),
+        footer: 'Expense Tracker'
+      });
+    } else {
+      attachments.push({
+        color: '#b0bec5',
+        title: '💸 Today\'s trading costs',
+        text: `No expense entry for ${date}. Log today\'s STT, exchange, brokerage, and others in Expense Tracker.`,
+        footer: 'Expense Tracker'
+      });
+    }
+
     // Add open trades section if any
     if (openTrades && openTrades.length > 0) {
       const tradesText = openTrades.map(trade => 
@@ -354,8 +392,33 @@ class SlackNotificationService {
       
       attachments.push({
         color: '#36a64f',
-        title: '🔓 Open Trades',
+        title: `🔓 Open trades (EOD ${date})`,
         text: tradesText,
+        footer: 'Trading Journal'
+      });
+    }
+
+    if (openedTrades && openedTrades.length > 0) {
+      const openedText = openedTrades.map(
+        (trade) =>
+          `• ${trade.asset} (${trade.type}) — Qty: ${trade.quantity} @ ₹${formatInr(trade.price)}`
+      ).join('\n');
+      attachments.push({
+        color: '#0288d1',
+        title: '📥 Trades opened (this day)',
+        text: openedText,
+        footer: 'Trading Journal'
+      });
+    }
+
+    if (closedTrades && closedTrades.length > 0) {
+      const closedText = closedTrades.map((trade) =>
+        `• ${trade.asset} (${trade.type}) — P/L: ₹${formatInr(trade.overallreturn)} (exit ${trade.exitdate ? moment(trade.exitdate).format('MMM DD') : '—'})`
+      ).join('\n');
+      attachments.push({
+        color: '#2e7d32',
+        title: '✅ Trades closed (this day)',
+        text: closedText,
         footer: 'Trading Journal'
       });
     }
@@ -374,16 +437,14 @@ class SlackNotificationService {
       });
     }
 
-    // Add top strategies section if any
-    if (topStrategies && topStrategies.length > 0) {
-      const strategiesText = topStrategies.map(strategy => 
-        `• ${strategy.name}: ₹${strategy.latestPnL} (${strategy.latestDate ? moment(strategy.latestDate).format('MMM DD') : 'No data'})`
+    if (closedStrategies && closedStrategies.length > 0) {
+      const closedStratText = closedStrategies.map((s) =>
+        `• ${s.name} — Realized: ₹${formatInr(s.realized_pl)}`
       ).join('\n');
-      
       attachments.push({
-        color: '#9c27b0',
-        title: '🏆 Top Strategies (Latest P&L)',
-        text: strategiesText,
+        color: '#6a1b9a',
+        title: '📕 Strategies closed (this day)',
+        text: closedStratText,
         footer: 'Trading Journal'
       });
     }

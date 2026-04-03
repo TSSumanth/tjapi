@@ -159,6 +159,13 @@ exports.updateStrategy = async (req, res) => {
     if (status !== undefined) {
       updateFields.push("status");
       updateValues.push(status.toUpperCase());
+      if (status.toUpperCase() === "CLOSE") {
+        updateFields.push("closed_at");
+        updateValues.push(moment().format("YYYY-MM-DD HH:mm:ss"));
+      } else if (status.toUpperCase() === "OPEN") {
+        updateFields.push("closed_at");
+        updateValues.push(null);
+      }
     }
     if (description !== undefined) {
       updateFields.push("description");
