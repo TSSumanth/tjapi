@@ -1,17 +1,41 @@
 const db = require("../db");
 const moment = require("moment");
 
+/** MySQL DATE columns need YYYY-MM-DD; clients often send ISO strings (e.g. from Dayjs). */
+function toMysqlDate(value) {
+  const m = moment(value);
+  if (!m.isValid()) return null;
+  return m.format("YYYY-MM-DD");
+}
 
 exports.addHoliday = async (req, res) => {
-  const { name, description, date, priority } = req.body;
+  const { name, description, date, priority: priorityIn } = req.body;
 
   try {
-    if (!(priority.toUpperCase() === "HIGH" || priority.toUpperCase() === "MEDIUM" || priority.toUpperCase() === "LOW")) {
+    if (name === undefined || name === null || String(name).trim() === "") {
+      return res.status(400).json({ message: "Missing required field: name" });
+    }
+    if (date === undefined || date === null || String(date).trim() === "") {
+      return res.status(400).json({ message: "Missing required field: date" });
+    }
+
+    const priorityNorm = String(priorityIn ?? "MEDIUM").trim().toUpperCase();
+    const allowed = ["HIGH", "MEDIUM", "LOW"];
+    if (!allowed.includes(priorityNorm)) {
       return res.status(400).json({
-        "message": "Invalid Priority: " + priority.toUpperCase() + ". Priority can only be HIGH, MEDIUM or LOW."
+        message: `Invalid priority: ${priorityIn}. Priority can only be HIGH, MEDIUM or LOW.`
       });
     }
-    const [result] = await db.pool.query('INSERT INTO holidays (name, description, date, priority) VALUES (?, ?, ?, ?)', [name, description, date, priority]);
+
+    const dateOnly = toMysqlDate(date);
+    if (!dateOnly) {
+      return res.status(400).json({ message: "Invalid date value" });
+    }
+
+    const [result] = await db.pool.query(
+      "INSERT INTO holidays (name, description, date, priority) VALUES (?, ?, ?, ?)",
+      [name, description ?? null, dateOnly, priorityNorm]
+    );
 
     res.status(201).json({ message: "Holiday added successfully!" });
   } catch (err) {
@@ -46,13 +70,12 @@ exports.updateHoliday = async (req, res) => {
     }
 
     if (date !== undefined) {
+      const dateOnly = toMysqlDate(date);
+      if (!dateOnly) {
+        return res.status(400).json({ message: "Invalid date value" });
+      }
       updateFields.push("date");
-      updateValues.push(date);
-    }
-
-    if (name !== undefined) {
-      updateFields.push("name");
-      updateValues.push(name);
+      updateValues.push(dateOnly);
     }
 
     if (priority !== undefined) {
